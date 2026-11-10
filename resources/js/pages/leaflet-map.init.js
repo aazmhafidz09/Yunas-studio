@@ -1,5 +1,9 @@
 
 
+// @ts-nocheck
+/* eslint-disable */
+/* global L, statesData */
+
 /*
 Template Name: Minible - Admin & Dashboard Template
 Author: Themesbrand
