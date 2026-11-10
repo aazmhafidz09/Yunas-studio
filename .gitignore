@@ -1,0 +1,57 @@
+/node_modules
+/public/hot
+/public/storage
+/public/storage_backup
+/storage/*.key
+/vendor
+.env
+.env.backup
+.env.production
+.phpunit.result.cache
+docker-compose.override.yml
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+/.fleet
+/.idea
+/.vscode
+.DS_Store
+
+# Laravel Storage & Framework Cache/Logs
+/storage/app/public/*
+!/storage/app/public/.gitignore
+/storage/framework/cache/*
+!/storage/framework/cache/.gitignore
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+/storage/framework/views/*
+!/storage/framework/views/.gitignore
+/storage/logs/*
+!/storage/logs/.gitignore
+
+# Backup & Arsip file besar (Penyebab utama limit GitHub 100MB)
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+/backup/
+yunas-studio-app.zip
+
+# File Gambar / Images
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.gif
+*.bmp
+*.tiff
+*.ico
+
+# Kecualikan gambar aset UI & logo bawaan template agar tampilan web tidak hilang:
+!/public/assets/images/**
+!/public/images/**
+!/public/LogoYunas.png
+!/public/logo.png
+!/resources/images/**

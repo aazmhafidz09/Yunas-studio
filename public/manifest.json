@@ -1,0 +1,59 @@
+{
+    "name": "Yunas Studio",
+    "short_name": "Yunas App",
+    "start_url": "/booking",
+    "background_color": "#6777ef",
+    "description": "Progressive Web App (PWA) for Yunas Studio, a platform for creative content and services.",
+    "display": "fullscreen",
+    "theme_color": "#6777ef",
+    "icons": [
+        {
+            "src": "icon-72x72.png?v=1786564207",
+            "sizes": "72x72",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icon-96x96.png?v=1786564207",
+            "sizes": "96x96",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icon-128x128.png?v=1786564207",
+            "sizes": "128x128",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icon-144x144.png?v=1786564207",
+            "sizes": "144x144",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icon-152x152.png?v=1786564207",
+            "sizes": "152x152",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icon-192x192.png?v=1786564207",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icon-384x384.png?v=1786564207",
+            "sizes": "384x384",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icon-512x512.png?v=1786564207",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        }
+    ]
+}
