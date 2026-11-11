@@ -22,6 +22,7 @@ use App\Http\Controllers\User\KontakController;
 use App\Http\Controllers\User\GaleriController;
 use App\Http\Controllers\RescheduleController;
 use App\Http\Controllers\User\PhotoController;
+use App\Http\Controllers\PhotoSelectionController;
  
 
 
@@ -111,6 +112,16 @@ Route::middleware(['auth'])->group(function () {
 
     // User Photo Gallery (Google Drive API)
     Route::get('/foto', [PhotoController::class, 'index'])->name('user.foto.index');
+    Route::post('/foto/{transaksi}/pilih-edit', [PhotoController::class, 'toggleEditSelection'])->name('user.foto.select-edit');
+    Route::post('/foto/{transaksi}/ajukan-edit', [PhotoController::class, 'submitEditSelection'])->name('user.foto.submit-edit');
+    Route::post('/foto/{transaksi}/tarik-edit', [PhotoController::class, 'withdrawEditSelection'])->name('user.foto.withdraw-edit');
+
+    // Admin: review pilihan foto edit pelanggan
+    Route::get('/pilihan-foto', [PhotoSelectionController::class, 'index'])->name('photo-selections.index');
+    Route::get('/pilihan-foto/{transaksi}', [PhotoSelectionController::class, 'show'])->name('photo-selections.show');
+    Route::post('/pilihan-foto/{transaksi}/approve', [PhotoSelectionController::class, 'approve'])->name('photo-selections.approve');
+    Route::post('/pilihan-foto/{transaksi}/reject', [PhotoSelectionController::class, 'reject'])->name('photo-selections.reject');
+    Route::post('/pilihan-foto/{transaksi}/reopen', [PhotoSelectionController::class, 'reopen'])->name('photo-selections.reopen');
 
 
     Route::prefix('transaksi/{transaksi}')->name('transaksi.')->group(function () {

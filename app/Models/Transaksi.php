@@ -34,6 +34,31 @@ class Transaksi extends Model
         'session_time',
     ];
 
+    protected $casts = [
+        'edit_selection_submitted_at' => 'datetime',
+        'edit_selection_reviewed_at' => 'datetime',
+    ];
+
+    // Review state of the customer's "photos to edit" selection (column edit_selection_status)
+    public const EDIT_SELECTION_DRAFT = null;
+    public const EDIT_SELECTION_SUBMITTED = 'submitted';
+    public const EDIT_SELECTION_APPROVED = 'approved';
+    public const EDIT_SELECTION_REJECTED = 'rejected';
+
+    /**
+     * Process statuses during which the customer may still pick photos for editing.
+     */
+    public const EDIT_SELECTABLE_PROCESS_STATUSES = ['Pelanggan Belum Foto', 'Pelanggan Pilih Foto'];
+
+    /**
+     * Whether the customer may currently add/remove photos in the edit selection.
+     */
+    public function canCustomerEditSelection(): bool
+    {
+        return in_array($this->process_status, self::EDIT_SELECTABLE_PROCESS_STATUSES, true)
+            && !in_array($this->edit_selection_status, [self::EDIT_SELECTION_SUBMITTED, self::EDIT_SELECTION_APPROVED], true);
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);
