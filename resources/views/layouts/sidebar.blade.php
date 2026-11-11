@@ -3,7 +3,7 @@
 
     <!-- LOGO -->
     <div class="navbar-brand-box">
-        <a href="{{Auth::user()->isUser() ? url('transaksi') : url('index')}}" class="logo logo-dark">
+        <a href="{{Auth::user()->isUser() ? route('user.foto.index') : (Auth::user()->isKasir() ? url('transaksi') : url('index'))}}" class="logo logo-dark">
             <span class="logo-sm">
                 <img src="{{ URL::asset('/assets/images/yunas_dark.png') }}" alt="" height="12">
             </span>
