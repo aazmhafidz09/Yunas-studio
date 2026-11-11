@@ -30,8 +30,12 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
     
-     'whatsapp' => [
-    'admin_number' => env('WHATSAPP_ADMIN_NUMBER'),
+    'whatsapp' => [
+        'admin_number' => env('WHATSAPP_ADMIN_NUMBER'),
+    ],
+
+    'google_drive' => [
+        'api_key' => env('GOOGLE_DRIVE_API_KEY'),
     ],
 
 
