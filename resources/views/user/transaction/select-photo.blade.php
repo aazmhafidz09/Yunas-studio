@@ -121,7 +121,7 @@
 
     @php
         // --- LOGIKA PERHITUNGAN KUOTA FOTO (JATAH EDIT) ---
-        $finalMaxPhotos = $transaksi->packet->max_photos_for_edit ?? 0;
+        $finalMaxPhotos = $transaksi->packet?->retouch_limit ?? 0;
         $displayMaxPhotos = $finalMaxPhotos > 0 ? $finalMaxPhotos . ' Foto' : 'Unlimited';
 
         // Hitung Total Kuota Cetak untuk Badge
