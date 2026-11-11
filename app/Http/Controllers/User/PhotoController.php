@@ -28,7 +28,7 @@ class PhotoController extends Controller
     {
         // 1. Get all transactions for this user, ordered by latest first
         $transactions = $this->userTransactionsQuery()
-            ->with(['packet.product', 'packet.additionalDefaults.additional'])
+            ->with(['packet.product', 'packet.additionalDefaults.additional', 'additionals'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -83,7 +83,7 @@ class PhotoController extends Controller
         }
 
         // 5. Photo selection for editing (retouch) — done on the RAW photos
-        $retouchLimit = $selectedTransaksi?->packet?->retouch_limit ?? 0;
+        $retouchLimit = $selectedTransaksi?->retouch_limit ?? 0;
         $selectedPhotoIds = $selectedTransaksi
             ? $selectedTransaksi->selectedPhotos()->where('is_print', false)->pluck('file_url')
                 ->map(fn ($url) => $this->extractFileId($url))
@@ -131,8 +131,8 @@ class PhotoController extends Controller
             'action' => 'required|in:select,cancel',
         ]);
 
-        $transaksi->loadMissing('packet.additionalDefaults.additional');
-        $limit = $transaksi->packet?->retouch_limit ?? 0;
+        $transaksi->loadMissing(['packet.additionalDefaults.additional', 'additionals']);
+        $limit = $transaksi->retouch_limit;
         $fileUrl = "https://drive.google.com/file/d/{$data['photo_id']}/view";
 
         // The photo must really exist in this transaction's RAW folder (also used for file names)
@@ -221,7 +221,8 @@ class PhotoController extends Controller
             return $redirect->with('error', 'Pilih minimal 1 foto sebelum mengajukan ke admin.');
         }
 
-        $limit = $transaksi->packet?->retouch_limit ?? 0;
+        $transaksi->loadMissing(['packet.additionalDefaults.additional', 'additionals']);
+        $limit = $transaksi->retouch_limit;
         if ($limit > 0 && $count > $limit) {
             return $redirect->with('error', "Jumlah foto melebihi batas paket (maksimal {$limit} foto).");
         }

@@ -76,6 +76,60 @@ class Transaksi extends Model
             ->withTimestamps();
     }
 
+    /**
+     * Total maximum number of photos the customer may select for editing (retouch).
+     *
+     * Combines:
+     * 1. The packet's included retouch quota (packet->retouch_limit, parsed from packet's "Retouch N Photo" default additionals)
+     * 2. Plus any extra photo editing additionals attached to this transaction (e.g. "Add Edit Photo/ 1 photo",
+     *    "Retouch", etc.) multiplied by their quantity.
+     *
+     * @return int Total quota (0 = unlimited).
+     */
+    public function getRetouchLimitAttribute(): int
+    {
+        $this->loadMissing(['packet.additionalDefaults.additional', 'additionals']);
+
+        $base = $this->packet?->retouch_limit ?? 0;
+        $extra = $this->extra_edit_photos_count;
+
+        return $base + $extra;
+    }
+
+    /**
+     * Extra edit photo quota contributed by transaction additionals.
+     *
+     * Detects additionals whose name indicates photo retouching/editing (e.g. "Add Edit Photo/ 1 photo",
+     * "Retouch 5 Photo", "Tambah Edit Foto"), extracts the number of photos per item, and multiplies
+     * by the purchased quantity.
+     */
+    public function getExtraEditPhotosCountAttribute(): int
+    {
+        $this->loadMissing('additionals');
+
+        $extra = 0;
+        foreach ($this->additionals as $additional) {
+            $name = $additional->name ?? '';
+
+            // Match keywords indicating edit/retouch (ignoring purely print or other items)
+            if (preg_match('/(edit\s*(?:photo|foto)|retouch)/i', $name)) {
+                $perUnit = 1;
+                if (preg_match('/(\d+)\s*(?:photo|foto|lembar|pcs)/i', $name, $matches)) {
+                    $perUnit = (int) $matches[1];
+                } elseif (preg_match('/retouch\D*(\d+)/i', $name, $matches)) {
+                    $perUnit = (int) $matches[1];
+                } elseif (preg_match('/(?:tambah|add)\D*(\d+)/i', $name, $matches)) {
+                    $perUnit = (int) $matches[1];
+                }
+
+                $qty = max(1, (int) ($additional->pivot->quantity ?? 1));
+                $extra += max(1, $perUnit) * $qty;
+            }
+        }
+
+        return $extra;
+    }
+
     public function selectedPhotos()
     {
         return $this->hasMany(SelectedPhoto::class, 'transaction_id', 'transaction_id');

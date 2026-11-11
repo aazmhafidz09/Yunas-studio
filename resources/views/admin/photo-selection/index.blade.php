@@ -77,7 +77,7 @@
                             <tbody>
                                 @forelse($transactions as $trx)
                                     @php
-                                        $limit = $trx->packet?->retouch_limit ?? 0;
+                                        $limit = $trx->retouch_limit;
                                         $time = match ($status) {
                                             'submitted' => $trx->edit_selection_submitted_at,
                                             'draft' => $trx->updated_at,

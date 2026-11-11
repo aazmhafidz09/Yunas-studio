@@ -590,7 +590,7 @@
                                                         ];
 
                                                         if ($transaksi->process_status === 'Pelanggan Pilih Foto') {
-                                                            $maxEdit = $transaksi->packet?->retouch_limit ?? 0;
+                                                            $maxEdit = $transaksi->retouch_limit;
                                                             $editList = "";
                                                             for ($i = 1; $i <= $maxEdit; $i++) {
                                                                 $editList .= "{$i}. \n";

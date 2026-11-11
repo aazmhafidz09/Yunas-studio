@@ -48,7 +48,7 @@ class PhotoSelectionController extends Controller
         ];
 
         $query = (clone $base)
-            ->with(['packet.product', 'packet.additionalDefaults.additional'])
+            ->with(['packet.product', 'packet.additionalDefaults.additional', 'additionals'])
             ->withCount(['selectedPhotos as edit_photos_count' => fn ($s) => $s->where('is_print', false)]);
 
         $query = $status === 'draft'
@@ -76,7 +76,7 @@ class PhotoSelectionController extends Controller
     {
         $this->authorizeStaff();
 
-        $transaksi->load(['packet.product', 'packet.additionalDefaults.additional']);
+        $transaksi->load(['packet.product', 'packet.additionalDefaults.additional', 'additionals']);
 
         $selected = $transaksi->selectedPhotos()->where('is_print', false)->orderBy('id')->get();
 
@@ -109,7 +109,7 @@ class PhotoSelectionController extends Controller
             ];
         });
 
-        $retouchLimit = $transaksi->packet?->retouch_limit ?? 0;
+        $retouchLimit = $transaksi->retouch_limit;
 
         return view('admin.photo-selection.show', compact('transaksi', 'photos', 'retouchLimit', 'driveError'));
     }

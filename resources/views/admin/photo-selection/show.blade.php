@@ -58,7 +58,11 @@
                             <h4 class="mt-2 mb-1">#{{ $transaksi->receipt_code }} <span class="badge {{ $statusBadge }} font-size-12 align-middle">{{ $statusLabel }}</span></h4>
                             <div class="text-muted font-size-13">
                                 <i class="uil-user me-1"></i>{{ $transaksi->customer_name }} · {{ $transaksi->phone_number }}<br>
-                                <i class="uil-store me-1"></i>{{ $transaksi->packet?->product?->name ?? '-' }} — {{ $transaksi->packet?->name ?? '-' }}<br>
+                                <i class="uil-store me-1"></i>{{ $transaksi->packet?->product?->name ?? '-' }} — {{ $transaksi->packet?->name ?? '-' }}
+                                @if(($transaksi->extra_edit_photos_count ?? 0) > 0)
+                                    <span class="badge bg-soft-info text-info ms-1">+{{ $transaksi->extra_edit_photos_count }} Tambahan Edit</span>
+                                @endif
+                                <br>
                                 <i class="uil-processing me-1"></i>Status proses: <span class="badge bg-secondary">{{ $transaksi->process_status }}</span>
                                 @if($transaksi->edit_selection_submitted_at)
                                     <br><i class="uil-clock me-1"></i>Diajukan: {{ $transaksi->edit_selection_submitted_at->format('d M Y H:i') }}

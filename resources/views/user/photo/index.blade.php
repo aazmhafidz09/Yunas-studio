@@ -368,7 +368,14 @@
                                         <i class="uil-edit text-primary me-1"></i>
                                         Tekan tombol <strong>Pilih untuk Diedit</strong> pada foto yang ingin diedit
                                         @if($retouchLimit > 0)
-                                            <span class="d-block d-sm-inline">(maksimal <strong>{{ $retouchLimit }} foto</strong> sesuai paket {{ $selectedTransaksi->packet->name ?? '' }})</span>
+                                            <span class="d-block d-sm-inline">
+                                                (maksimal <strong>{{ $retouchLimit }} foto</strong>
+                                                @if(($selectedTransaksi->extra_edit_photos_count ?? 0) > 0)
+                                                    &mdash; {{ $selectedTransaksi->packet?->retouch_limit ?? 0 }} paket + {{ $selectedTransaksi->extra_edit_photos_count }} tambahan
+                                                @elseif($selectedTransaksi->packet?->name)
+                                                    sesuai paket {{ $selectedTransaksi->packet->name }}
+                                                @endif)
+                                            </span>
                                         @endif
                                         <div class="text-muted font-size-12 mt-1">Setelah selesai memilih, tekan <strong>Ajukan ke Admin</strong> untuk diproses.</div>
                                     </div>
