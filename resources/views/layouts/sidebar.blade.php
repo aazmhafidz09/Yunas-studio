@@ -50,6 +50,13 @@
                     </a>
                 </li>
 
+                <li>
+                    <a href="{{ route('user.foto.index') }}" class="waves-effect {{ request()->routeIs('user.foto.*') ? 'active' : '' }}">
+                        <i class="uil-images"></i>
+                        <span>Foto</span>
+                    </a>
+                </li>
+
                 @can('viewAny', App\Models\Expense::class)
                     <li>
                         <a href="{{url('expenses')}}" class="waves-effect">

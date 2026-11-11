@@ -21,6 +21,7 @@ use App\Http\Controllers\User\RescheduleRequestController;
 use App\Http\Controllers\User\KontakController;
 use App\Http\Controllers\User\GaleriController;
 use App\Http\Controllers\RescheduleController;
+use App\Http\Controllers\User\PhotoController;
  
 
 
@@ -107,6 +108,9 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('transaksi', TransaksiController::class);
     Route::put('/transaksi/{id}/update-status', [TransaksiController::class, 'updateStatus'])->name('transaksi.update-status');
     Route::resource('gateway', dataGatewayController::class);
+
+    // User Photo Gallery (Google Drive API)
+    Route::get('/foto', [PhotoController::class, 'index'])->name('user.foto.index');
 
 
     Route::prefix('transaksi/{transaksi}')->name('transaksi.')->group(function () {

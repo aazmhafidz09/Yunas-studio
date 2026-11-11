@@ -228,6 +228,9 @@ class TransaksiController extends Controller
         
         $transactions = $listQuery->paginate($perPage)->withQueryString();
         
+        $processStatuses = $this->processStatuses;
+        $paymentStatuses = ['belum dibayar', 'dp', 'sudah dibayar'];
+
         if ($user->isUser()) {
              $userPacketIds = (clone $query)->distinct()->pluck('packet_id');
              $packetsForFilter = Packet::with('product')->whereIn('id', $userPacketIds)->orderBy('name')->get()->groupBy('product.name');
@@ -235,8 +238,6 @@ class TransaksiController extends Controller
         }
 
         $packetsForFilter = Packet::with('product')->whereHas('product')->orderBy('name')->get()->groupBy('product.name');
-        $processStatuses = $this->processStatuses;
-        $paymentStatuses = ['belum dibayar', 'dp', 'sudah dibayar'];
 
         return view('admin.transaction.transaksi', compact(
             'transactions', 'perPageOptions', 
