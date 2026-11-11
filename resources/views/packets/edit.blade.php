@@ -118,7 +118,7 @@
                         </div>
 
                         <div class="d-flex justify-content-between mt-4">
-                            <a href="{{ route('packets.index') }}" class="btn btn-secondary">Cancel</a>
+                            <a href="{{ route('packets.product', $packet->product_id) }}" class="btn btn-secondary">Cancel</a>
                             <button type="submit" class="btn btn-primary">Update Packet Details</button>
                         </div>
                     </form>
