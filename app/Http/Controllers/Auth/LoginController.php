@@ -50,8 +50,13 @@ class LoginController extends Controller
      */
     protected function authenticated(Request $request, $user)
     {
-        // Redirect if the user's role is not Admin.
-        if (!$user->isAdmin()) {
+        // Redirect if the user's role is User.
+        if ($user->isUser()) {
+            return redirect()->route('user.foto.index');
+        }
+
+        // Redirect if the user's role is Kasir.
+        if ($user->isKasir()) {
             return redirect()->route('transaksi.index');
         }
 

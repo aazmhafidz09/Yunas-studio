@@ -242,9 +242,10 @@
                     <ul class="packet-feature-list mt-2">
                         ${lines.map(l => `<li>${l.trim()}</li>`).join('')}
                     </ul>` : ''}
+                ${(packet.retouch_limit ?? packet.max_photos_for_edit) > 0 ? `
                 <div class="mt-2 text-muted" style="font-size:11px;">
-                    Max ${packet.max_photos_for_edit} foto editing
-                </div>
+                    Max ${packet.retouch_limit ?? packet.max_photos_for_edit} foto editing
+                </div>` : ''}
             `;
 
             item.addEventListener('click', function () {

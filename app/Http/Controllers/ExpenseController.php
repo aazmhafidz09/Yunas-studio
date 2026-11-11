@@ -161,7 +161,17 @@ class ExpenseController extends Controller
             $data['receipt_image'] = $path;
         }
         
-        Expense::create($data);
+        $expense = Expense::create($data);
+        $expense->load('category');
+        
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Data berhasil ditambahkan',
+                'data' => $this->formatExpenseData($expense),
+                'totals' => $this->getTotalsJson()
+            ]);
+        }
         
         return redirect()->route('expenses.index')
             ->with('success', 'Data berhasil ditambahkan');
@@ -172,6 +182,14 @@ class ExpenseController extends Controller
      */
     public function show(Expense $expense)
     {
+        if (request()->ajax()) {
+            $expense->load('category');
+            return response()->json([
+                'success' => true,
+                'data' => $this->formatExpenseData($expense)
+            ]);
+        }
+
         return view('admin.expenses.show', compact('expense'));
     }
 
@@ -180,6 +198,14 @@ class ExpenseController extends Controller
      */
     public function edit(Expense $expense)
     {
+        if (request()->ajax()) {
+            $expense->load('category');
+            return response()->json([
+                'success' => true,
+                'data' => $this->formatExpenseData($expense)
+            ]);
+        }
+
         $categories = ExpenseCategory::orderBy('name')->get();
         return view('admin.expenses.edit', compact('expense', 'categories'));
     }
@@ -212,6 +238,16 @@ class ExpenseController extends Controller
         }
         
         $expense->update($data);
+        $expense->load('category');
+        
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Data berhasil diperbarui',
+                'data' => $this->formatExpenseData($expense),
+                'totals' => $this->getTotalsJson()
+            ]);
+        }
         
         return redirect()->route('expenses.index')
             ->with('success', 'Data berhasil diperbarui');
@@ -228,6 +264,14 @@ class ExpenseController extends Controller
         
         $expense->delete();
         
+        if (request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Data berhasil dihapus',
+                'totals' => $this->getTotalsJson()
+            ]);
+        }
+
         return redirect()->route('expenses.index')
             ->with('success', 'Data berhasil dihapus');
     }
@@ -293,6 +337,20 @@ class ExpenseController extends Controller
         
         $status = $expense->is_paid ? 'lunas' : 'belum lunas';
         
+        if (request()->ajax()) {
+            $expense->refresh();
+            return response()->json([
+                'success' => true,
+                'message' => "Status pembayaran berhasil diubah menjadi {$status}.",
+                'is_paid' => $expense->is_paid,
+                'paid_amount' => $expense->paid_amount,
+                'remaining_amount' => $expense->remaining_amount,
+                'payment_status_label' => $expense->payment_status_label,
+                'payment_status_color' => $expense->payment_status_color,
+                'totals' => $this->getTotalsJson()
+            ]);
+        }
+
         return redirect()->route('expenses.index')
             ->with('success', "Status pembayaran berhasil diubah menjadi {$status}.");
     }
@@ -316,19 +374,6 @@ class ExpenseController extends Controller
         // Get the first day of the month
         $date = Carbon::createFromDate($year, $month, 1)->format('Y-m-d');
         
-        // Check if monthly expenses have already been generated for this month and year
-        // Hanya cek berdasarkan is_monthly_generated, bukan berdasarkan tipe
-        // Hapus pengecekan ini agar bisa generate ulang untuk bulan yang sama
-        // $monthlyGeneratedExists = Expense::where('is_monthly_generated', true)
-        //     ->whereYear('expense_date', $year)
-        //     ->whereMonth('expense_date', $month)
-        //     ->exists();
-            
-        // if ($monthlyGeneratedExists) {
-        //     return redirect()->route('expenses.index', ['month' => $month, 'year' => $year])
-        //         ->with('info', 'Biaya bulanan sudah pernah di-generate untuk bulan dan tahun ini.');
-        // }
-        
         // Get all monthly default categories
         $defaultCategories = ExpenseCategory::where('is_monthly_default', true)->get();
         
@@ -348,7 +393,6 @@ class ExpenseController extends Controller
                 
             // Jika sudah ada expense untuk kategori ini di bulan yang sama, skip kategori ini
             if ($existingExpense) {
-                // Log untuk debugging
                 \Log::info('Skipping category, expense already exists:', [
                     'category_id' => $category->id,
                     'category_name' => $category->name,
@@ -374,7 +418,6 @@ class ExpenseController extends Controller
             ]);
             $count++;
             
-            // Log untuk debugging
             \Log::info('Generated monthly expense for category:', [
                 'category_id' => $category->id,
                 'category_name' => $category->name,
@@ -383,6 +426,15 @@ class ExpenseController extends Controller
             ]);
         }
         
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'count' => $count,
+                'message' => $count > 0 ? "$count biaya bulanan default berhasil dibuat." : 'Semua biaya bulanan default untuk bulan ini sudah ada.',
+                'totals' => $this->getTotalsJson()
+            ]);
+        }
+
         if ($count > 0) {
             return redirect()->route('expenses.index', ['month' => $month, 'year' => $year])
                 ->with('success', "$count biaya bulanan default berhasil dibuat.");
@@ -405,9 +457,29 @@ class ExpenseController extends Controller
         try {
             $expense->makePartialPayment($request->amount, $request->notes);
             
+            if ($request->ajax()) {
+                $expense->refresh();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Pembayaran sebagian berhasil dicatat. Sisa hutang: ' . $expense->formatted_remaining_amount,
+                    'paid_amount' => $expense->paid_amount,
+                    'remaining_amount' => $expense->remaining_amount,
+                    'formatted_paid_amount' => $expense->formattedPaidAmount,
+                    'formatted_remaining_amount' => $expense->formatted_remaining_amount,
+                    'payment_progress' => $expense->paymentProgress,
+                    'totals' => $this->getTotalsJson()
+                ]);
+            }
+
             return redirect()->route('expenses.index')
                 ->with('success', 'Pembayaran sebagian berhasil dicatat. Sisa hutang: ' . $expense->formatted_remaining_amount);
         } catch (\Exception $e) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ], 422);
+            }
             return redirect()->route('expenses.index')
                 ->with('error', $e->getMessage());
         }
@@ -434,5 +506,52 @@ class ExpenseController extends Controller
     public function getCurrentBalance()
     {
         return Balance::getCurrentBalance();
+    }
+
+    /**
+     * Helper to get totals JSON for AJAX responses
+     */
+    private function getTotalsJson()
+    {
+        $currentBalance = $this->getCurrentBalance();
+        $totalExpenses = Expense::where('type', 'expense')->sum('amount');
+        $totalIncome = Expense::where('type', 'income')->sum('amount');
+        return [
+            'current_balance' => $currentBalance,
+            'current_balance_formatted' => 'Rp ' . number_format($currentBalance, 0, ',', '.'),
+            'total_expenses' => $totalExpenses,
+            'total_expenses_formatted' => 'Rp ' . number_format($totalExpenses, 0, ',', '.'),
+            'total_income' => $totalIncome,
+            'total_income_formatted' => 'Rp ' . number_format($totalIncome, 0, ',', '.'),
+        ];
+    }
+
+    /**
+     * Helper to format expense model data for JSON responses
+     */
+    private function formatExpenseData(Expense $expense)
+    {
+        return [
+            'id' => $expense->id,
+            'name' => $expense->name,
+            'amount' => $expense->amount,
+            'formatted_amount' => $expense->formatted_amount,
+            'expense_date' => $expense->expense_date ? $expense->expense_date->format('Y-m-d') : null,
+            'formatted_date' => $expense->expense_date ? $expense->expense_date->format('d M Y') : '-',
+            'category_id' => $expense->category_id,
+            'category_name' => $expense->category ? $expense->category->name : '-',
+            'type' => $expense->type,
+            'type_label' => $expense->type_label,
+            'type_color' => $expense->type == 'income' ? 'success' : ($expense->type == 'expense' ? 'danger' : 'warning'),
+            'row_color' => $expense->row_color,
+            'description' => $expense->description,
+            'is_paid' => $expense->is_paid,
+            'payment_status_label' => $expense->payment_status_label,
+            'payment_status_color' => $expense->payment_status_color,
+            'paid_amount' => $expense->paid_amount,
+            'remaining_amount' => $expense->remaining_amount,
+            'receipt_image' => $expense->receipt_image,
+            'receipt_image_url' => $expense->receipt_image ? Storage::url($expense->receipt_image) : null,
+        ];
     }
 }

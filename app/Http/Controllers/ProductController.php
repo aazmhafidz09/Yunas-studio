@@ -44,7 +44,22 @@ class ProductController extends Controller
             $data['image'] = 'products/' . $imageName;
         }
 
-        Product::create($data);
+        $product = Product::create($data);
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Product created successfully :)',
+                'data' => [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'description' => $product->description,
+                    'image' => $product->image,
+                    'image_url' => $product->image ? Storage::url($product->image) : null,
+                    'packets_count' => 0
+                ]
+            ]);
+        }
 
         return redirect()->route('products.index')
                          ->with('success', 'Product created successfully :)');
@@ -55,6 +70,19 @@ class ProductController extends Controller
      */
     public function show(Product $product)
     {
+        if (request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'description' => $product->description,
+                    'image' => $product->image,
+                    'image_url' => $product->image ? Storage::url($product->image) : null,
+                    'packets_count' => $product->packets()->count()
+                ]
+            ]);
+        }
         return view('products.show', compact('product'));
     }
 
@@ -63,6 +91,19 @@ class ProductController extends Controller
      */
     public function edit(Product $product)
     {
+        if (request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'description' => $product->description,
+                    'image' => $product->image,
+                    'image_url' => $product->image ? Storage::url($product->image) : null,
+                    'packets_count' => $product->packets()->count()
+                ]
+            ]);
+        }
         return view('products.edit', compact('product'));
     }
 
@@ -92,6 +133,21 @@ class ProductController extends Controller
 
         $product->update($data);
 
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Product updated successfully :)',
+                'data' => [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'description' => $product->description,
+                    'image' => $product->image,
+                    'image_url' => $product->image ? Storage::url($product->image) : null,
+                    'packets_count' => $product->packets()->count()
+                ]
+            ]);
+        }
+
         return redirect()->route('products.index')
                          ->with('success', 'Product updated successfully :)');
     }
@@ -103,6 +159,12 @@ class ProductController extends Controller
     {
         // Check if product has packets
         if ($product->packets()->count() > 0) {
+            if (request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot delete product with packets :)'
+                ], 422);
+            }
             return redirect()->route('products.index')
                              ->with('error', 'Cannot delete product with packets :)');
         }
@@ -113,6 +175,13 @@ class ProductController extends Controller
         }
         
         $product->delete();
+
+        if (request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Product deleted successfully :('
+            ]);
+        }
 
         return redirect()->route('products.index')
                          ->with('success', 'Product deleted successfully :(');

@@ -23,6 +23,13 @@ class RedirectIfAuthenticated
 
         foreach ($guards as $guard) {
             if (Auth::guard($guard)->check()) {
+                $user = Auth::guard($guard)->user();
+                if ($user && method_exists($user, 'isUser') && $user->isUser()) {
+                    return redirect()->route('user.foto.index');
+                }
+                if ($user && method_exists($user, 'isKasir') && $user->isKasir()) {
+                    return redirect()->route('transaksi.index');
+                }
                 return redirect(RouteServiceProvider::HOME);
             }
         }

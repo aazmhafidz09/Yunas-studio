@@ -102,7 +102,12 @@ class GoogleDriveService
             Cache::forget($cacheKey);
         }
 
-        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($folderId, $apiKey, $originalUrl) {
+        $cached = Cache::get($cacheKey);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $result = (function () use ($folderId, $apiKey, $originalUrl) {
             try {
                 $response = Http::timeout(15)->get('https://www.googleapis.com/drive/v3/files', [
                     'q' => "'{$folderId}' in parents and mimeType contains 'image/' and trashed = false",
@@ -183,9 +188,11 @@ class GoogleDriveService
                 ];
 
             } catch (\Exception $e) {
-                Log::error("Google Drive API Exception: " . $e->getMessage(), [
+                // Exception messages from cURL contain the full request URL (including the API key),
+                // so redact the key before logging and never expose the raw message to users.
+                Log::error('Google Drive API Exception: ' . str_replace($apiKey, '[REDACTED]', $e->getMessage()), [
                     'folderId' => $folderId,
-                    'trace' => $e->getTraceAsString(),
+                    'exception' => get_class($e),
                 ]);
 
                 return [
@@ -193,12 +200,19 @@ class GoogleDriveService
                     'folder_id' => $folderId,
                     'original_url' => $originalUrl,
                     'error' => 'EXCEPTION',
-                    'message' => 'Terjadi kesalahan saat menghubungi server Google Drive: ' . $e->getMessage(),
+                    'message' => 'Terjadi kesalahan saat menghubungi server Google Drive. Silakan coba lagi beberapa saat lagi atau buka folder langsung di Google Drive.',
                     'files' => [],
                     'count' => 0,
                 ];
             }
-        });
+        })();
+
+        // Only cache successful responses so transient failures don't stick around for the whole TTL.
+        if ($result['success']) {
+            Cache::put($cacheKey, $result, self::CACHE_TTL);
+        }
+
+        return $result;
     }
 
     /**

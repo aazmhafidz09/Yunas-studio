@@ -47,7 +47,7 @@
                             @endif
                             
                             <div class="d-flex mt-4">
-                                <a href="{{ route('packets.index') }}" class="btn btn-secondary me-2">
+                                <a href="{{ route('packets.product', $packet->product_id) }}" class="btn btn-secondary me-2">
                                     <i class="bx bx-arrow-back me-1"></i> Back to Packets
                                 </a>
                                 <a href="{{ route('packets.edit', $packet->id) }}" class="btn btn-primary me-2">

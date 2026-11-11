@@ -3,7 +3,7 @@
 
     <!-- LOGO -->
     <div class="navbar-brand-box">
-        <a href="{{Auth::user()->isUser() ? url('transaksi') : url('index')}}" class="logo logo-dark">
+        <a href="{{Auth::user()->isUser() ? route('user.foto.index') : (Auth::user()->isKasir() ? url('transaksi') : url('index'))}}" class="logo logo-dark">
             <span class="logo-sm">
                 <img src="{{ URL::asset('/assets/images/yunas_dark.png') }}" alt="" height="12">
             </span>
@@ -56,6 +56,19 @@
                         <span>Foto</span>
                     </a>
                 </li>
+
+                @if(Auth::user()->isAdmin() || Auth::user()->isKasir())
+                    @php $pendingSelections = \App\Models\Transaksi::where('edit_selection_status', 'submitted')->count(); @endphp
+                    <li>
+                        <a href="{{ route('photo-selections.index') }}" class="waves-effect {{ request()->routeIs('photo-selections.*') ? 'active' : '' }}">
+                            <i class="uil-check-square"></i>
+                            @if($pendingSelections > 0)
+                                <span class="badge rounded-pill bg-warning float-end">{{ $pendingSelections }}</span>
+                            @endif
+                            <span>Pilihan Foto Edit</span>
+                        </a>
+                    </li>
+                @endif
 
                 @can('viewAny', App\Models\Expense::class)
                     <li>

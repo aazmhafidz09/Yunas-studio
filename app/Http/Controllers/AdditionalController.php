@@ -42,7 +42,16 @@ class AdditionalController extends Controller
             'price'=>'required',
         ]);
 
-        Additional::create($validated);
+        $additional = Additional::create($validated);
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Additional added successfully.',
+                'data' => $additional
+            ]);
+        }
+
         return redirect()->route('additionals.index')->with('success', 'Additional added successfully.');
     }
 
@@ -51,7 +60,12 @@ class AdditionalController extends Controller
      */
     public function show(Additional $additional)
     {
-        //
+        if (request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'data' => $additional
+            ]);
+        }
     }
 
     /**
@@ -59,7 +73,13 @@ class AdditionalController extends Controller
      */
     public function edit(Additional $additional)
     {
-        //
+        if (request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'data' => $additional
+            ]);
+        }
+
         return view('admin.additionals.edit', compact('additional'));
     }
 
@@ -68,12 +88,20 @@ class AdditionalController extends Controller
      */
     public function update(Request $request, Additional $additional)
     {
-        //
         $validated = $request->validate([
             'name'=>'required',
             'price'=>'required',
         ]);
         $additional->update($validated);
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Additional updated successfully.',
+                'data' => $additional
+            ]);
+        }
+
         return redirect()->route('additionals.index')->with('success', 'Additional updated successfully.');
     }
 
@@ -83,6 +111,14 @@ class AdditionalController extends Controller
     public function destroy(Additional $additional)
     {
         $additional->delete();
+
+        if (request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Additional deleted successfully.'
+            ]);
+        }
+
         return redirect()->route('additionals.index')->with('success', 'Additional deleted successfully.');
     }
 }

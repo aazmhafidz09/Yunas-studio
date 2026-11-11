@@ -44,6 +44,12 @@ self.addEventListener("fetch", (event) => {
 
     const request = event.request;
 
+    // ✅ Let the browser handle non-GET requests (POST/PUT/DELETE, e.g. AJAX actions & forms).
+    //    The Cache API cannot store them, so routing them through the cache logic below breaks them.
+    if (request.method !== "GET") {
+        return;
+    }
+
     // ✅ Handle page navigation (offline fallback)
     if (request.mode === "navigate") {
         event.respondWith(
@@ -78,18 +84,16 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
         fetch(request)
             .then(response => {
-                return caches.open(CACHE_NAME).then(cache => {
-                    cache.put(request, response.clone());
-                    return response;
-                });
-            })
-            .catch(async (error) => {
-                // Retry failed API requests if Background Sync is supported
-                if (request.method === 'POST' && 'SyncManager' in self) {
-                    // We can't easily queue it here because we can't access IndexedDB easily without a library or boilerplate
-                    // But we've already handled form submissions in background-sync.js
+                // Only cache successful same-origin responses
+                if (response.ok && new URL(request.url).origin === self.location.origin) {
+                    const copy = response.clone();
+                    caches.open(CACHE_NAME).then(cache => cache.put(request, copy)).catch(() => {});
                 }
-                return caches.match(request);
+                return response;
+            })
+            .catch(async () => {
+                const cached = await caches.match(request);
+                return cached || Response.error();
             })
     );
 });

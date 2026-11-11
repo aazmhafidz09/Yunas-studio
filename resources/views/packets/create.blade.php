@@ -93,9 +93,9 @@
                                         <div class="mb-3">
                                             <label for="product_id" class="form-label">Product</label>
                                             <select class="form-select" id="product_id" name="product_id" required>
-                                                <option value="" selected disabled>Select Product</option>
+                                                <option value="" {{ empty(old('product_id', $selectedProductId ?? '')) ? 'selected' : '' }} disabled>Select Product</option>
                                                 @foreach($products as $product)
-                                                    <option value="{{ $product->id }}" {{ old('product_id') == $product->id ? 'selected' : '' }}>
+                                                    <option value="{{ $product->id }}" {{ old('product_id', $selectedProductId ?? '') == $product->id ? 'selected' : '' }}>
                                                         {{ $product->name }}
                                                     </option>
                                                 @endforeach
@@ -119,7 +119,7 @@
                         </div>
 
                         <div class="d-flex justify-content-between mt-4">
-                            <a href="{{ route('packets.index') }}" class="btn btn-secondary">Cancel</a>
+                            <a href="{{ !empty($selectedProductId) ? route('packets.product', $selectedProductId) : route('packets.index') }}" class="btn btn-secondary">Cancel</a>
                             <button type="submit" class="btn btn-primary">Create Packet</button>
                         </div>
                     </form>

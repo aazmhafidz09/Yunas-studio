@@ -42,10 +42,11 @@ class PacketController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Request $request)
     {
         $products = Product::all();
-        return view('packets.create', compact('products'));
+        $selectedProductId = $request->query('product_id');
+        return view('packets.create', compact('products', 'selectedProductId'));
     }
 
     /**
@@ -71,9 +72,9 @@ class PacketController extends Controller
             $data['image'] = 'packets/' . $imageName;
         }
 
-        Packet::create($data);
+        $packet = Packet::create($data);
 
-        return redirect()->route('packets.index')
+        return redirect()->route('packets.product', $packet->product_id)
                          ->with('success', 'Packet created successfully :)');
     }
 
@@ -127,7 +128,7 @@ class PacketController extends Controller
 
         $packet->update($data);
 
-        return redirect()->route('packets.index')
+        return redirect()->route('packets.product', $packet->product_id)
                          ->with('success', 'Packet updated successfully :)');
     }
 
@@ -136,6 +137,8 @@ class PacketController extends Controller
      */
     public function destroy(Packet $packet)
     {
+        $productId = $packet->product_id;
+
         // Delete image if exists
         if ($packet->image) {
             Storage::delete('public/' . $packet->image);
@@ -143,7 +146,14 @@ class PacketController extends Controller
         
         $packet->delete();
 
-        return redirect()->route('packets.index')
+        if (request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Packet deleted successfully.'
+            ]);
+        }
+
+        return redirect()->route('packets.product', $productId)
                          ->with('success', 'Packet deleted successfully :(');
     }
     
@@ -158,7 +168,15 @@ class PacketController extends Controller
         
         $status = $packet->is_active ? 'activated' : 'deactivated';
         
-       return redirect()->back()->with('success');
+        if (request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'is_active' => $packet->is_active,
+                'message' => "Packet {$status} successfully."
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Packet {$status} successfully.");
     }
 
     /**

@@ -67,6 +67,31 @@ class Packet extends Model
     }
 
     /**
+     * Maximum number of photos the customer may pick for editing (retouch).
+     *
+     * Taken from the "Retouch N Photo" default additional of this packet (N × quantity).
+     * Falls back to max_photos_for_edit when the packet has no retouch additional.
+     * 0 means unlimited.
+     */
+    public function getRetouchLimitAttribute(): int
+    {
+        $this->loadMissing('additionalDefaults.additional');
+
+        $limit = 0;
+        $found = false;
+
+        foreach ($this->additionalDefaults as $default) {
+            $name = $default->additional->name ?? '';
+            if (preg_match('/retouch\D*(\d+)/i', $name, $m)) {
+                $limit += (int) $m[1] * max(1, (int) $default->quantity);
+                $found = true;
+            }
+        }
+
+        return $found ? $limit : (int) ($this->max_photos_for_edit ?? 0);
+    }
+
+    /**
      * NEW ACCESSOR: Combines regular defaults and print options into a single collection for display.
      */
     public function getCombinedDefaultsAttribute()
