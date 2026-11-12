@@ -52,6 +52,14 @@ class LoginController extends Controller
     {
         // Redirect if the user's role is User.
         if ($user->isUser()) {
+            // Customer accounts are created with password = username (phone number).
+            // Offer a password change once after login while that default is still in use.
+            if (\Illuminate\Support\Facades\Hash::check((string) $user->username, $user->password)) {
+                $request->session()->put('suggest_password_change', true);
+            } else {
+                $request->session()->forget('suggest_password_change');
+            }
+
             return redirect()->route('user.foto.index');
         }
 
