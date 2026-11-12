@@ -24,6 +24,34 @@
     [$statusLabel, $statusBadge] = $statusMap[$transaksi->edit_selection_status] ?? ['Belum Diajukan', 'bg-secondary'];
     $count = $photos->count();
     $overLimit = $retouchLimit > 0 && $count > $retouchLimit;
+
+    // --- Pesan WhatsApp untuk memberi tahu pelanggan hasil review ---
+    $paketText = ($transaksi->packet?->product?->name ?? '-') . ' - ' . ($transaksi->packet?->name ?? '-');
+    $linkFoto = route('user.foto.index', ['transaksi_id' => $transaksi->transaction_id, 'type' => 'raw']);
+    $waText = null;
+    if ($transaksi->edit_selection_status === 'approved') {
+        $waText = "Halo kak *{$transaksi->customer_name}*, pilihan foto edit kakak sudah *DISETUJUI* oleh admin Yunas Studio.\n\n"
+            . "Detail Paket:\n*{$paketText}*\nNo. Nota : {$transaksi->receipt_code}\n\n"
+            . "Jumlah foto yang akan diedit: *{$count} foto*\n"
+            . ($count > 0 ? "Daftar foto:\n" . $photos->pluck('name')->values()->map(fn ($n, $i) => ($i + 1) . ". {$n}")->implode("\n") . "\n\n" : "\n")
+            . "Foto kakak sekarang masuk ke *Proses Edit*. Kami akan mengabari kakak kembali setelah hasil edit selesai. Hasilnya nanti bisa dilihat di menu *Foto* kategori *Hasil Foto Edit*.\n\nTerima kasih";
+    } elseif ($transaksi->edit_selection_status === 'rejected') {
+        $waText = "Halo kak *{$transaksi->customer_name}*, mohon maaf pilihan foto edit kakak untuk nota *{$transaksi->receipt_code}* *belum dapat kami setujui*.\n\n"
+            . ($transaksi->edit_selection_note ? "Alasan:\n{$transaksi->edit_selection_note}\n\n" : "")
+            . "Pilihan sebelumnya sudah direset. Mohon pilih ulang foto kakak melalui link berikut:\n{$linkFoto}\n\n"
+            . "Buka menu *Foto* → *Foto Mentah*, tekan *Pilih untuk Diedit* pada foto yang diinginkan"
+            . ($retouchLimit > 0 ? " (maksimal {$retouchLimit} foto)" : "")
+            . ", lalu tekan *Ajukan ke Admin*.\n\nTerima kasih";
+    }
+
+    $waLink = null;
+    if ($waText) {
+        $phone = preg_replace('/\D/', '', (string) $transaksi->phone_number);
+        if (str_starts_with($phone, '0')) {
+            $phone = '62' . substr($phone, 1);
+        }
+        $waLink = "https://api.whatsapp.com/send?phone={$phone}&text=" . urlencode($waText);
+    }
 @endphp
 
 @section('content')
@@ -115,6 +143,13 @@
                                             : 'Pelanggan belum mengajukan pilihan foto.' }}
                                     </div>
                                 @endif
+
+                                @if($waLink)
+                                    <a href="{{ $waLink }}" target="_blank" class="btn btn-outline-success"
+                                       title="Kirim hasil review ke WhatsApp pelanggan">
+                                        <i class="mdi mdi-whatsapp me-1"></i>Kabari Pelanggan
+                                    </a>
+                                @endif
                             </div>
 
                             @if($transaksi->url_images)
@@ -171,6 +206,8 @@
                                     <div class="font-size-13 fw-semibold text-truncate" title="{{ $photo['name'] }}">{{ $photo['name'] }}</div>
                                     @if($photo['missing'])
                                         <div class="text-danger font-size-11">File tidak ditemukan lagi di folder</div>
+                                    @elseif($photo['moved'] ?? false)
+                                        <div class="text-info font-size-11">Sudah dipindah dari folder foto mentah</div>
                                     @endif
                                     <div class="d-flex gap-1 mt-2">
                                         <a href="{{ $photo['web_view_url'] }}" target="_blank" class="btn btn-sm btn-outline-secondary w-100 py-1 font-size-12" title="Buka di Drive">

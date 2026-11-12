@@ -59,6 +59,14 @@
         padding: 5px 8px;
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
     }
+    /* Sorot tombol WA admin tepat setelah pengajuan */
+    .wa-admin-highlight {
+        animation: waPulse 1.4s ease-in-out 4;
+    }
+    @keyframes waPulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(52, 195, 143, 0.6); }
+        50% { box-shadow: 0 0 0 8px rgba(52, 195, 143, 0); }
+    }
     .btn-select-edit, .btn-cancel-edit {
         white-space: nowrap;
         overflow: hidden;
@@ -411,21 +419,41 @@
                                     @if($selectedTransaksi->edit_selection_submitted_at)
                                         pada {{ $selectedTransaksi->edit_selection_submitted_at->format('d M Y H:i') }}
                                     @endif.
-                                    <div class="font-size-12">Ingin mengubah pilihan? Tarik pengajuan terlebih dahulu.</div>
+                                    <div class="font-size-12">
+                                        @if($waAdminLink)
+                                            Kirim daftar foto ke WhatsApp admin agar segera diproses.
+                                        @endif
+                                        Ingin mengubah pilihan? Tarik pengajuan terlebih dahulu.
+                                    </div>
                                 </div>
-                                <form method="POST" action="{{ route('user.foto.withdraw-edit', $selectedTransaksi->transaction_id) }}"
-                                      onsubmit="return confirm('Tarik pengajuan untuk mengubah pilihan foto?');">
-                                    @csrf
-                                    <button type="submit" class="btn btn-outline-dark btn-sm text-nowrap">
-                                        <i class="uil-redo me-1"></i>Tarik Pengajuan
-                                    </button>
-                                </form>
+                                <div class="d-flex flex-column flex-sm-row gap-2">
+                                    @if($waAdminLink)
+                                        <a href="{{ $waAdminLink }}" target="_blank" rel="noopener"
+                                           class="btn btn-success btn-sm text-nowrap {{ session('just_submitted') ? 'wa-admin-highlight' : '' }}">
+                                            <i class="mdi mdi-whatsapp me-1"></i>Kirim ke WhatsApp Admin
+                                        </a>
+                                    @endif
+                                    <form method="POST" action="{{ route('user.foto.withdraw-edit', $selectedTransaksi->transaction_id) }}"
+                                          onsubmit="return confirm('Tarik pengajuan untuk mengubah pilihan foto?');">
+                                        @csrf
+                                        <button type="submit" class="btn btn-outline-dark btn-sm text-nowrap w-100">
+                                            <i class="uil-redo me-1"></i>Tarik Pengajuan
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                         @elseif($selStatus === 'approved')
-                            <div class="alert alert-success py-2 font-size-13">
-                                <i class="uil-check-circle me-1"></i><strong>Pilihan foto Anda telah disetujui admin.</strong>
-                                {{ count($selectedPhotoIds) }}{{ $retouchLimit > 0 ? ' / ' . $retouchLimit : '' }} foto akan diedit.
-                                Hubungi admin studio jika ingin mengubah pilihan.
+                            <div class="alert alert-success d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 py-2 font-size-13">
+                                <div>
+                                    <i class="uil-check-circle me-1"></i><strong>Pilihan foto Anda telah disetujui admin.</strong>
+                                    {{ count($selectedPhotoIds) }}{{ $retouchLimit > 0 ? ' / ' . $retouchLimit : '' }} foto akan diedit.
+                                    Hubungi admin studio jika ingin mengubah pilihan.
+                                </div>
+                                @if($waAdminLink)
+                                    <a href="{{ $waAdminLink }}" target="_blank" rel="noopener" class="btn btn-outline-success btn-sm text-nowrap">
+                                        <i class="mdi mdi-whatsapp me-1"></i>Hubungi Admin
+                                    </a>
+                                @endif
                             </div>
                         @else
                             <div class="alert alert-secondary py-2 font-size-13">

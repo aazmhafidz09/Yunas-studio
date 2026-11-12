@@ -95,16 +95,19 @@ class PhotoSelectionController extends Controller
         $photos = $selected->map(function ($row) use ($driveFiles) {
             $id = preg_match('#/file/d/([a-zA-Z0-9_-]+)#', $row->file_url, $m) ? $m[1] : null;
             $file = $id ? $driveFiles->get($id) : null;
+            // Not in the RAW folder any more (e.g. moved to the result folder by the editor) → look it up by id
+            $movedName = (!$file && $id) ? $this->googleDriveService->getFileName($id) : null;
 
             return [
                 'id' => $id,
-                'name' => $file['name'] ?? ($id ?? 'Foto'),
+                'name' => $file['name'] ?? $movedName ?? ($id ?? 'Foto'),
                 'thumbnail_url' => $file['thumbnail_url'] ?? ($id ? "https://drive.google.com/thumbnail?id={$id}&sz=w500" : null),
                 'fallback_thumbnail' => $id ? "https://drive.google.com/thumbnail?id={$id}&sz=w500" : null,
                 'preview_url' => $file['preview_url'] ?? ($id ? "https://lh3.googleusercontent.com/d/{$id}=s1600" : null),
                 'web_view_url' => $row->file_url,
                 'download_url' => $file['download_url'] ?? ($id ? "https://drive.google.com/uc?export=download&id={$id}" : $row->file_url),
-                'missing' => $id && $driveFiles->isNotEmpty() && !$file,
+                'missing' => $id && $driveFiles->isNotEmpty() && !$file && !$movedName,
+                'moved' => (bool) $movedName,
                 'selected_at' => $row->created_at,
             ];
         });
