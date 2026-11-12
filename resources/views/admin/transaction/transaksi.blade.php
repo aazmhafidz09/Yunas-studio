@@ -356,8 +356,14 @@
                             </div>
                             
                             <div class="row mt-3">
-                                <div class="col-12 text-end">
+                                <div class="col-12 d-flex flex-wrap justify-content-end gap-2">
                                      <a href="{{ route('transaksi.index') }}" class="btn btn-secondary btn-sm"><i class="bx bx-reset me-1"></i> Reset Semua Filter</a>
+                                     @if(auth()->user()->isAdmin() || auth()->user()->isKasir())
+                                         <button type="button" class="btn btn-success btn-sm" onclick="exportTransaksiExcel()"
+                                                 title="Export transaksi sesuai rentang tanggal Dari – Sampai">
+                                             <i class="mdi mdi-microsoft-excel me-1"></i> Export Excel
+                                         </button>
+                                     @endif
                                 </div>
                             </div>
                         </div>
@@ -815,6 +821,27 @@
 @endsection
 
 @section('script')
+<script>
+    // Export Excel: hanya transaksi dalam rentang tanggal "Dari" – "Sampai" yang sedang dipilih
+    function exportTransaksiExcel() {
+        const start = document.getElementById('start_date').value;
+        const end = document.getElementById('end_date').value;
+
+        if (!start || !end) {
+            alert('Silakan isi tanggal "Dari" dan "Sampai" terlebih dahulu.');
+            return;
+        }
+        if (end < start) {
+            alert('Tanggal "Sampai" tidak boleh sebelum tanggal "Dari".');
+            return;
+        }
+
+        const url = new URL(@json(route('transaksi.export')));
+        url.searchParams.set('start_date', start);
+        url.searchParams.set('end_date', end);
+        window.location.href = url.toString();
+    }
+</script>
 <script>
     function setQuickFilter(type) {
         const today = new Date();

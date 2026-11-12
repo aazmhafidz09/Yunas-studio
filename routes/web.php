@@ -13,6 +13,7 @@ use App\Http\Controllers\User\ProductController as UserProductController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\TransaksiController;
+use App\Http\Controllers\TransaksiExportController;
 use App\Http\Controllers\AdditionalController;
 use App\Http\Controllers\AdditionalDefaultController;
 use App\Http\Controllers\User\PaymentController;
@@ -106,6 +107,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/expenses/generate-monthly', [ExpenseController::class, 'generateMonthlyExpenses'])->name('expenses.generate-monthly');
 
     // Transaksi
+    Route::get('/transaksi-export', [TransaksiExportController::class, 'export'])->name('transaksi.export');
     Route::resource('transaksi', TransaksiController::class);
     Route::put('/transaksi/{id}/update-status', [TransaksiController::class, 'updateStatus'])->name('transaksi.update-status');
     Route::resource('gateway', dataGatewayController::class);
