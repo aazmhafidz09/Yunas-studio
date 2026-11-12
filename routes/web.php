@@ -13,6 +13,7 @@ use App\Http\Controllers\User\ProductController as UserProductController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\TransaksiController;
+use App\Http\Controllers\TransaksiExportController;
 use App\Http\Controllers\AdditionalController;
 use App\Http\Controllers\AdditionalDefaultController;
 use App\Http\Controllers\User\PaymentController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\User\KontakController;
 use App\Http\Controllers\User\GaleriController;
 use App\Http\Controllers\RescheduleController;
 use App\Http\Controllers\User\PhotoController;
+use App\Http\Controllers\User\AccountController;
 use App\Http\Controllers\PhotoSelectionController;
  
 
@@ -106,12 +108,14 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/expenses/generate-monthly', [ExpenseController::class, 'generateMonthlyExpenses'])->name('expenses.generate-monthly');
 
     // Transaksi
+    Route::get('/transaksi-export', [TransaksiExportController::class, 'export'])->name('transaksi.export');
     Route::resource('transaksi', TransaksiController::class);
     Route::put('/transaksi/{id}/update-status', [TransaksiController::class, 'updateStatus'])->name('transaksi.update-status');
     Route::resource('gateway', dataGatewayController::class);
 
     // User Photo Gallery (Google Drive API)
     Route::get('/foto', [PhotoController::class, 'index'])->name('user.foto.index');
+    Route::post('/akun/ganti-password-default', [AccountController::class, 'updateDefaultPassword'])->name('user.password.default.update');
     Route::post('/foto/{transaksi}/pilih-edit', [PhotoController::class, 'toggleEditSelection'])->name('user.foto.select-edit');
     Route::post('/foto/{transaksi}/ajukan-edit', [PhotoController::class, 'submitEditSelection'])->name('user.foto.submit-edit');
     Route::post('/foto/{transaksi}/tarik-edit', [PhotoController::class, 'withdrawEditSelection'])->name('user.foto.withdraw-edit');

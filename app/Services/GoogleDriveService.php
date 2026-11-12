@@ -232,5 +232,42 @@ class GoogleDriveService
 
         return round($bytes / pow(1024, $i), 1) . ' ' . ($units[$i] ?? 'B');
     }
+
+    /**
+     * Look up the file name of a single Drive file by its id, wherever it lives now
+     * (e.g. a selected RAW photo that the editor has since moved to the result folder).
+     * Successful lookups are cached for a day; returns null when the file cannot be read.
+     */
+    public function getFileName(string $fileId): ?string
+    {
+        $apiKey = config('services.google_drive.api_key');
+        if (empty($apiKey) || !preg_match('/^[a-zA-Z0-9_-]+$/', $fileId)) {
+            return null;
+        }
+
+        $cacheKey = "gdrive_file_name_{$fileId}";
+        if (($cached = Cache::get($cacheKey)) !== null) {
+            return $cached;
+        }
+
+        try {
+            $response = Http::timeout(10)->get("https://www.googleapis.com/drive/v3/files/{$fileId}", [
+                'fields' => 'name',
+                'key' => $apiKey,
+            ]);
+            $name = $response->successful() ? $response->json('name') : null;
+        } catch (\Exception $e) {
+            Log::warning('Google Drive file lookup failed: ' . str_replace($apiKey, '[REDACTED]', $e->getMessage()), [
+                'fileId' => $fileId,
+            ]);
+            $name = null;
+        }
+
+        if ($name) {
+            Cache::put($cacheKey, $name, 86400);
+        }
+
+        return $name;
+    }
 }
 

@@ -456,10 +456,20 @@ class TransaksiController extends Controller
                 'note'            => $validatedData['note'],
                 'url_images'      => $validatedData['url_images'] ?? null,
                 'url_photos_result' => $validatedData['url_photos_result'] ?? null,
-                'select_edit_photo'  => $validatedData['select_edit_photo'] ?? null,
-                'select_print_photo' => $validatedData['select_print_photo'] ?? null,
             ]);
-            
+
+            // Hanya ubah daftar pilihan foto jika field-nya memang dikirim dari form.
+            // Form edit transaksi tidak memiliki field ini, sehingga sebelumnya pilihan foto
+            // pelanggan (diisi dari menu Foto) ikut terhapus setiap kali transaksi disimpan.
+            foreach (['select_edit_photo', 'select_print_photo'] as $field) {
+                if ($request->has($field)) {
+                    $transaksi->{$field} = $validatedData[$field] ?? null;
+                }
+            }
+            if ($transaksi->isDirty(['select_edit_photo', 'select_print_photo'])) {
+                $transaksi->save();
+            }
+
             // LOGIKA PEMASUKAN DI UPDATE
             if ($validatedData['status'] === 'sudah dibayar') {
                 $this->recordIncome($transaksi);

@@ -93,6 +93,13 @@ class PhotoController extends Controller
             && $type === 'raw'
             && $selectedTransaksi->canCustomerEditSelection();
 
+        // 6. WhatsApp link so the customer can send the chosen photo names to the admin
+        $waAdminLink = $selectedTransaksi
+            && in_array($selectedTransaksi->edit_selection_status, [Transaksi::EDIT_SELECTION_SUBMITTED, Transaksi::EDIT_SELECTION_APPROVED], true)
+            && count($selectedPhotoIds) > 0
+                ? $this->buildAdminWhatsappLink($selectedTransaksi, count($selectedPhotoIds), $retouchLimit)
+                : null;
+
         return view('user.photo.index', [
             'transactions' => $transactions,
             'selectedTransaksi' => $selectedTransaksi,
@@ -105,7 +112,104 @@ class PhotoController extends Controller
             'retouchLimit' => $retouchLimit,
             'selectedPhotoIds' => $selectedPhotoIds,
             'canSelect' => $canSelect,
+            'waAdminLink' => $waAdminLink,
         ]);
+    }
+
+    /**
+     * Build a wa.me link to the studio admin containing the customer's chosen photo names.
+     */
+    private function buildAdminWhatsappLink(Transaksi $transaksi, int $count, int $limit): ?string
+    {
+        $adminPhone = preg_replace('/\D/', '', (string) config('services.whatsapp.admin_number'));
+        if ($adminPhone === '') {
+            return null;
+        }
+        if (str_starts_with($adminPhone, '0')) {
+            $adminPhone = '62' . substr($adminPhone, 1);
+        }
+
+        $paket = ($transaksi->packet?->product?->name ?? '-') . ' - ' . ($transaksi->packet?->name ?? '-');
+        // Build from the selected_photos rows (source of truth), not the select_edit_photo text,
+        // which can be overwritten elsewhere (e.g. the admin transaction edit form).
+        $names = $this->editPhotoNames($transaksi);
+        $daftarEdit = $names->isEmpty()
+            ? '-'
+            : $names->map(fn ($name, $i) => ($i + 1) . '. ' . $name)->implode("\n");
+        $maxText = $limit > 0 ? "Max {$limit} Foto" : "{$count} Foto";
+
+        $message = "Halo admin Yunas Studio, berikut pilihan foto saya.\n\n"
+            . "Nama : {$transaksi->customer_name}\n"
+            . "No. Nota : {$transaksi->receipt_code}\n"
+            . "Detail Paket:\n*{$paket}*\n\n"
+            . "*DAFTAR FOTO EDIT ({$maxText})*\n{$daftarEdit}\n\n"
+            . "*DAFTAR FOTO CETAK*\n{$this->buildPrintList($transaksi)}\n\n"
+            . "Terima kasih";
+
+        return "https://api.whatsapp.com/send?phone={$adminPhone}&text=" . rawurlencode($message);
+    }
+
+    /**
+     * File names of the photos chosen for editing, in the order they were picked.
+     * Names come from the (cached) Drive listing of the RAW folder; falls back to the
+     * names stored in select_edit_photo, then to the Drive file id.
+     */
+    private function editPhotoNames(Transaksi $transaksi)
+    {
+        $ids = $transaksi->selectedPhotos()->where('is_print', false)->orderBy('id')->pluck('file_url')
+            ->map(fn ($url) => $this->extractFileId($url))
+            ->filter()->values();
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        $filesById = collect();
+        if ($transaksi->url_images) {
+            $photosData = $this->googleDriveService->getPhotosFromUrl($transaksi->url_images);
+            if ($photosData['success']) {
+                $filesById = collect($photosData['files'])->keyBy('id');
+            }
+        }
+
+        // Names previously stored as "1. NAME" lines, used when Drive is unavailable
+        $storedNames = collect(preg_split('/\r?\n/', (string) $transaksi->select_edit_photo))
+            ->map(fn ($line) => trim(preg_replace('/^\d+\.\s*/', '', $line)))
+            ->filter()->values();
+
+        return $ids->map(fn ($id, $i) => $filesById[$id]['name']
+            ?? $this->googleDriveService->getFileName($id)   // file moved out of the RAW folder (e.g. to the result folder)
+            ?? $storedNames[$i]
+            ?? $id);
+    }
+
+    /**
+     * Print slots of the order (packet print options + print additionals), same rules as the
+     * admin WhatsApp template. The customer fills in the photo name after each ":" in WhatsApp.
+     */
+    private function buildPrintList(Transaksi $transaksi): string
+    {
+        $isPrint = fn (string $name) => preg_match('/cetak|print/i', $name) && !preg_match('/(non|tanpa)\s*cetak/i', $name);
+        $lines = [];
+
+        foreach ($transaksi->packet?->combined_defaults ?? [] as $item) {
+            if ($isPrint($item->name)) {
+                for ($q = 0; $q < (int) $item->quantity; $q++) {
+                    $lines[] = "- {$item->name} : ";
+                }
+            }
+        }
+
+        $transaksi->loadMissing('additionals');
+        foreach ($transaksi->additionals as $additional) {
+            if ($isPrint($additional->name)) {
+                for ($q = 0; $q < (int) ($additional->pivot->quantity ?? 1); $q++) {
+                    $lines[] = "- (Extra) {$additional->name} : ";
+                }
+            }
+        }
+
+        return $lines ? implode("\n", $lines) : '- (Tidak ada item cetak)';
     }
 
     /**
@@ -232,7 +336,9 @@ class PhotoController extends Controller
         $transaksi->edit_selection_note = null;
         $transaksi->save();
 
-        return $redirect->with('success', "{$count} foto berhasil diajukan ke admin. Mohon tunggu persetujuan admin.");
+        return $redirect
+            ->with('success', "{$count} foto berhasil diajukan ke admin. Tekan tombol \"Kirim ke WhatsApp Admin\" agar admin segera memproses pilihan Anda.")
+            ->with('just_submitted', true);
     }
 
     /**

@@ -356,8 +356,14 @@
                             </div>
                             
                             <div class="row mt-3">
-                                <div class="col-12 text-end">
+                                <div class="col-12 d-flex flex-wrap justify-content-end gap-2">
                                      <a href="{{ route('transaksi.index') }}" class="btn btn-secondary btn-sm"><i class="bx bx-reset me-1"></i> Reset Semua Filter</a>
+                                     @if(auth()->user()->isAdmin() || auth()->user()->isKasir())
+                                         <button type="button" class="btn btn-success btn-sm" onclick="exportTransaksiExcel()"
+                                                 title="Export transaksi sesuai rentang tanggal Dari – Sampai">
+                                             <i class="mdi mdi-microsoft-excel me-1"></i> Export Excel
+                                         </button>
+                                     @endif
                                 </div>
                             </div>
                         </div>
@@ -591,15 +597,12 @@
 
                                                         if ($transaksi->process_status === 'Pelanggan Pilih Foto') {
                                                             $maxEdit = $transaksi->retouch_limit;
-                                                            $editList = "";
-                                                            for ($i = 1; $i <= $maxEdit; $i++) {
-                                                                $editList .= "{$i}. \n";
-                                                            }
+                                                            $maxEditText = $maxEdit > 0 ? "maksimal {$maxEdit} foto" : "sesuai paket";
 
                                                             $printList = "";
                                                             if ($transaksi->packet && $transaksi->packet->combined_defaults) {
                                                                 foreach ($transaksi->packet->combined_defaults as $item) {
-                                                                    if (stripos($item->name, 'cetak') !== false || stripos($item->name, 'print') !== false) {
+                                                                    if (preg_match("/cetak|print/i", $item->name) && !preg_match('/(non|tanpa)\s*cetak/i', $item->name)) {
                                                                         for ($q = 0; $q < $item->quantity; $q++) {
                                                                             $printList .= "- {$item->name} : \n";
                                                                         }
@@ -608,18 +611,40 @@
                                                             }
                                                             if ($transaksi->additionals) {
                                                                 foreach ($transaksi->additionals as $additional) {
-                                                                    if (stripos($additional->name, 'cetak') !== false || stripos($additional->name, 'print') !== false) {
+                                                                    if (preg_match("/cetak|print/i", $additional->name) && !preg_match('/(non|tanpa)\s*cetak/i', $additional->name)) {
                                                                         for ($q = 0; $q < $additional->pivot->quantity; $q++) {
                                                                             $printList .= "- (Extra) {$additional->name} : \n";
                                                                         }
                                                                     }
                                                                 }
                                                             }
-                                                            if (empty($printList)) {
-                                                                $printList = "- (Tidak ada item cetak) \n";
+                                                            // Pemilihan foto edit sekarang dilakukan pelanggan langsung di website (menu Foto)
+                                                            $linkPilihFoto = route('user.foto.index', ['transaksi_id' => $transaksi->transaction_id, 'type' => 'raw']);
+                                                            $loginUsername = $transaksi->user->username ?? $transaksi->phone_number;
+
+                                                            $pesanPilih = "Halo kak *{$transaksi->customer_name}*, Terima kasih sudah mempercayakan momennya di Yunas Studio.\n\n"
+                                                                . "Detail Paket:\n*{$productName} - {$packetName}*\n"
+                                                                . "No. Nota : {$transaksi->receipt_code}\n\n"
+                                                                . "Foto kakak sudah siap dipilih! Pemilihan foto untuk diedit sekarang dilakukan langsung melalui website Yunas Studio.\n\n"
+                                                                . "*CARA MEMILIH FOTO EDIT ({$maxEditText})*\n"
+                                                                . "1. Buka link berikut:\n{$linkPilihFoto}\n"
+                                                                . "2. Login menggunakan:\n"
+                                                                . "   Username : {$loginUsername}\n"
+                                                                . "   Password : nomor HP kakak (jika belum pernah diganti)\n"
+                                                                . "3. Buka menu *Foto*, pilih nota *{$transaksi->receipt_code}*, lalu pilih kategori *Foto Mentah*.\n"
+                                                                . "4. Tekan tombol *Pilih untuk Diedit* pada foto yang kakak inginkan ({$maxEditText}). Tekan *Batal Pilih* jika ingin mengganti foto.\n"
+                                                                . "5. Jika sudah selesai, tekan tombol *Ajukan ke Admin*.\n"
+                                                                . "6. Admin akan memeriksa pilihan kakak. Status persetujuan bisa dilihat di menu *Foto*. Jika ada yang perlu diganti, admin akan memberi tahu alasannya dan kakak bisa memilih ulang.\n\n";
+
+                                                            if (!empty($printList)) {
+                                                                $pesanPilih .= "*DAFTAR FOTO CETAK*\nUntuk foto yang akan dicetak, mohon balas pesan ini dengan mengisi nama fotonya (misal : YNSFXXX):\n{$printList}\n";
                                                             }
-                                                            $linkGaleri = $transaksi->url_images ? $transaksi->url_images : "[Link Belum Diisi]";
-                                                            $waMessages['Pelanggan Pilih Foto'] = "Halo kak *{$transaksi->customer_name}*, Terima kasih sudah mempercayakan momennya di Yunas Studio.\n\nDetail Paket:\n*{$productName} - {$packetName}*\n\nBerikut kami kirimkan link untuk pemilihan foto:\n{$linkGaleri}\n\n{$backupNote}\n\nMohon untuk mengisi format pemilihan foto dibawah ini dengan menyalin pesan ini dan mengisi nama fotonya (misal : 1.YNSFXXX):\n\n*DAFTAR FOTO EDIT (Max {$maxEdit} Foto)*\n{$editList}\n*DAFTAR FOTO CETAK*\n{$printList}\nTerima kasih";
+
+                                                            if ($transaksi->url_images) {
+                                                                $pesanPilih .= "Link Google Drive untuk mengunduh & backup semua foto:\n{$transaksi->url_images}\n\n";
+                                                            }
+
+                                                            $waMessages['Pelanggan Pilih Foto'] = $pesanPilih . "{$backupNote}\n\nTerima kasih";
                                                         }
 
                                                         $waTooltip = "Kirim WhatsApp";
@@ -815,6 +840,27 @@
 @endsection
 
 @section('script')
+<script>
+    // Export Excel: hanya transaksi dalam rentang tanggal "Dari" – "Sampai" yang sedang dipilih
+    function exportTransaksiExcel() {
+        const start = document.getElementById('start_date').value;
+        const end = document.getElementById('end_date').value;
+
+        if (!start || !end) {
+            alert('Silakan isi tanggal "Dari" dan "Sampai" terlebih dahulu.');
+            return;
+        }
+        if (end < start) {
+            alert('Tanggal "Sampai" tidak boleh sebelum tanggal "Dari".');
+            return;
+        }
+
+        const url = new URL(@json(route('transaksi.export')));
+        url.searchParams.set('start_date', start);
+        url.searchParams.set('end_date', end);
+        window.location.href = url.toString();
+    }
+</script>
 <script>
     function setQuickFilter(type) {
         const today = new Date();

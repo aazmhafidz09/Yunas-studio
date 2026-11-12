@@ -148,6 +148,78 @@
     </div>
 </div>
 
+{{-- Tawaran ganti password: hanya untuk pelanggan yang password-nya masih sama dengan username / nomor HP.
+     Flag diset saat login (LoginController@authenticated) dan ditampilkan sekali per login. --}}
+@php
+    $defaultPwErrors = isset($errors) ? $errors->getBag('defaultPassword') : null;
+    $showDefaultPasswordOffer = Auth::check() && Auth::user()->isUser()
+        && (session()->pull('suggest_password_change', false) || ($defaultPwErrors && $defaultPwErrors->any()));
+@endphp
+@if($showDefaultPasswordOffer)
+    <div class="modal fade" id="defaultPasswordModal" tabindex="-1" aria-labelledby="defaultPasswordModalLabel" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 12px;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title" id="defaultPasswordModalLabel">
+                        <i class="uil uil-shield-exclamation text-warning me-2"></i>Amankan Akun Anda
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Nanti saja"></button>
+                </div>
+                <form method="POST" action="{{ route('user.password.default.update') }}">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="alert alert-warning py-2 font-size-13">
+                            Password Anda masih sama dengan <strong>nomor HP / username</strong>.
+                            Agar akun dan foto Anda lebih aman, kami sarankan untuk mengganti password sekarang.
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="default_new_password" class="form-label">Password Baru</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control @if($defaultPwErrors && $defaultPwErrors->has('new_password')) is-invalid @endif"
+                                       id="default_new_password" name="new_password" minlength="8" required autocomplete="new-password">
+                                <button type="button" class="btn btn-light" onclick="toggleDefaultPw()" title="Lihat password">
+                                    <i class="uil uil-eye" id="defaultPwEye"></i>
+                                </button>
+                                @if($defaultPwErrors && $defaultPwErrors->has('new_password'))
+                                    <div class="invalid-feedback">{{ $defaultPwErrors->first('new_password') }}</div>
+                                @endif
+                            </div>
+                            <small class="text-muted">Minimal 8 karakter dan tidak boleh sama dengan nomor HP.</small>
+                        </div>
+
+                        <div class="mb-1">
+                            <label for="default_new_password_confirmation" class="form-label">Ulangi Password Baru</label>
+                            <input type="password" class="form-control" id="default_new_password_confirmation"
+                                   name="new_password_confirmation" minlength="8" required autocomplete="new-password">
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Nanti Saja</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="uil uil-lock-alt me-1"></i>Ganti Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script>
+        function toggleDefaultPw() {
+            ['default_new_password', 'default_new_password_confirmation'].forEach(function (id) {
+                var el = document.getElementById(id);
+                el.type = el.type === 'password' ? 'text' : 'password';
+            });
+            var eye = document.getElementById('defaultPwEye');
+            eye.classList.toggle('uil-eye');
+            eye.classList.toggle('uil-eye-slash');
+        }
+        document.addEventListener('DOMContentLoaded', function () {
+            new bootstrap.Modal(document.getElementById('defaultPasswordModal')).show();
+        });
+    </script>
+@endif
+
 <style>
     .modal {
         z-index: 99999 !important;
