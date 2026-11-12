@@ -50,12 +50,15 @@
                     </a>
                 </li>
 
-                <li>
-                    <a href="{{ route('user.foto.index') }}" class="waves-effect {{ request()->routeIs('user.foto.*') ? 'active' : '' }}">
-                        <i class="uil-images"></i>
-                        <span>Foto</span>
-                    </a>
-                </li>
+                {{-- Galeri Foto hanya untuk akun user (pelanggan) --}}
+                @if(Auth::user()->isUser())
+                    <li>
+                        <a href="{{ route('user.foto.index') }}" class="waves-effect {{ request()->routeIs('user.foto.*') ? 'active' : '' }}">
+                            <i class="uil-images"></i>
+                            <span>Foto</span>
+                        </a>
+                    </li>
+                @endif
 
                 @if(Auth::user()->isAdmin() || Auth::user()->isKasir())
                     @php $pendingSelections = \App\Models\Transaksi::where('edit_selection_status', 'submitted')->count(); @endphp
