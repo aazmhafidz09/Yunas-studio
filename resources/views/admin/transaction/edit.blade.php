@@ -5,7 +5,17 @@
 @endsection
 
 @section('css')
+    {{-- Tom Select (fitur pencarian pada dropdown) --}}
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
     <style>
+        .input-group > .ts-wrapper {
+            flex: 1 1 auto;
+            width: 1%;
+        }
+        .input-group > .ts-wrapper .ts-control {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
         .price-summary-card {
             position: sticky;
             top: 80px;
@@ -254,6 +264,7 @@
 @endsection
 
 @section('script')
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Form Elements
@@ -274,6 +285,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const paymentDetailsContainer = document.getElementById('payment-details-container');
     const paymentTypeRadios = document.querySelectorAll('.payment-type-radio');
     const canPrint = @json($canPrint); // Value from backend
+
+    // Dropdown tambahan dengan fitur pencarian
+    const additionalTS = new TomSelect('#add_additional_select', {
+        placeholder: 'Cari tambahan...',
+        maxOptions: null,
+        openOnFocus: true,
+    });
 
     const summary = {
         packetEl: document.getElementById('summary-packet-price'),
@@ -481,11 +499,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     addBtn.addEventListener('click', () => {
-        const selected = addSelect.options[addSelect.selectedIndex];
-        if (!selected.value) return;
-        addExtraRow(selected.value, selected.dataset.name, selected.dataset.price, 1);
+        const value = additionalTS.getValue();
+        if (!value) return;
+        const selected = addSelect.querySelector(`option[value="${value}"]`);
+        if (!selected) return;
+        addExtraRow(value, selected.dataset.name, selected.dataset.price, 1);
         updateSummary();
-        addSelect.value = '';
+        additionalTS.clear();
     });
 
     extraContainer.addEventListener('click', e => {
