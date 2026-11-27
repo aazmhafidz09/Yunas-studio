@@ -255,6 +255,10 @@ private function buildWhatsappMessage(Gateway $transaksi): string
         $lines[] = "Sisa Pembayaran: Rp" . number_format($sisa, 0, ',', '.');
     }
 
+    if ($transaksi->customer_note) {
+        $lines[] = "Catatan: {$transaksi->customer_note}";
+    }
+
     $lines[] = "";
     $lines[] = "Mohon konfirmasi ya, terima kasih!";
 

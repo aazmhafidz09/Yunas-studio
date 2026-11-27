@@ -463,7 +463,20 @@
                                         </table>
                                     </div>
                                 </div>
-                                @if($transaksi->note)<hr><div class="py-2"><h5 class="font-size-15">Catatan:</h5><p class="text-muted fst-italic">{{ $transaksi->note }}</p></div>@endif
+                                @if($transaksi->note)
+                                    <hr>
+                                    <div class="py-2">
+                                        <h5 class="font-size-15"><i class="mdi mdi-note-text-outline text-primary me-1"></i>Catatan Pelanggan:</h5>
+                                        @if($transaksi->customer_note)
+                                            <div class="p-3 rounded bg-light border" style="white-space:pre-line">{{ $transaksi->customer_note }}</div>
+                                        @else
+                                            <p class="text-muted fst-italic mb-0">Tidak ada catatan dari pelanggan.</p>
+                                        @endif
+                                        @if($transaksi->customer_note !== trim($transaksi->note))
+                                            <p class="text-muted small mt-2 mb-0" style="white-space:pre-line"><i class="mdi mdi-information-outline me-1"></i>{{ \Illuminate\Support\Str::before($transaksi->note, "\nCatatan pelanggan:") }}</p>
+                                        @endif
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     </div>
