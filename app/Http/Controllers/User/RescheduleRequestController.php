@@ -61,7 +61,8 @@ class RescheduleRequestController extends Controller
         }
 
         $bookedCounts = $this->getBookedCountPerSlot($date);
-        $bookingsPerSlot = $this->getBookingsPerSlot($date);
+        $dayBookings = $this->getDayBookings($date);
+        $bookingsPerSlot = $this->groupBookingsPerSlot($dayBookings);
 
         $slots = [];
         foreach ($allSlots as $time) {
@@ -88,12 +89,17 @@ class RescheduleRequestController extends Controller
                 'max' => 2,
                 'available' => $rangeAvailable,
                 // Detail booking yang menempati slot ini (nama sudah disensor).
-                // Urutan menentukan studio: index 0 = Studio A, index 1 = Studio B.
                 'bookings' => $bookingsPerSlot[$time] ?? [],
             ];
         }
 
-        return response()->json(['slots' => $slots, 'date' => $date]);
+        // Daftar booking hari ini untuk tabel di bawah grid
+        $bookings = array_map(function ($b) {
+            unset($b['slots'], $b['dp_amount']);
+            return $b;
+        }, $dayBookings);
+
+        return response()->json(['slots' => $slots, 'bookings' => $bookings, 'date' => $date]);
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -310,7 +316,9 @@ class RescheduleRequestController extends Controller
         // FIX: Carbon::parse menerima "10:00" maupun "10:00:00".
         // createFromFormat('H:i') gagal dengan "Trailing data" untuk "10:00:00".
         $start = Carbon::parse($startTime);
-        $slotCount = (int) ceil($durationMinutes / 30);
+        // Durasi dibulatkan ke kelipatan 30 menit (threshold 15 menit),
+        // mis. 40/45 menit → 1 slot, 50 menit → 2 slot. Lihat Packet::roundToSlotMinutes().
+        $slotCount = Packet::slotCount($durationMinutes);
         for ($i = 0; $i < $slotCount; $i++) {
             $slots[] = $start->copy()->addMinutes($i * 30)->format('H:i');
         }
@@ -353,39 +361,74 @@ class RescheduleRequestController extends Controller
     }
 
     /**
-     * Daftar booking aktif yang menempati setiap slot di 1 hari, untuk
-     * ditampilkan di popover jadwal publik. Nama customer disensor di server
-     * agar nama lengkap tidak pernah terkirim ke browser.
+     * Daftar booking aktif di 1 hari, masing-masing sudah diberi studio
+     * (A / B). Nama customer disensor di server agar nama lengkap tidak
+     * pernah terkirim ke browser.
+     *
+     * Penugasan studio: booking diurutkan per jam mulai, lalu ditempatkan di
+     * studio pertama yang tidak bentrok di seluruh rentang durasinya, sehingga
+     * satu booking selalu berada di studio yang sama di setiap slot-nya.
      */
-    private function getBookingsPerSlot(string $date): array
+    private function getDayBookings(string $date): array
     {
-        $perSlot = [];
-
         $transaksis = Gateway::whereDate('session_date', $date)
             ->whereNotIn('status', ['gagal'])
-            ->with('packet:id,name,duration_minutes')
+            ->with('packet:id,name,duration_minutes,product_id', 'packet.product:id,name')
             ->orderBy('session_time')
             ->orderBy('transaction_id')
-            ->get(['transaction_id', 'customer_name', 'packet_id', 'status', 'dp_amount', 'session_time']);
+            ->get(['transaction_id', 'customer_name', 'packet_id', 'status', 'dp_amount',
+                   'session_date', 'session_time', 'created_at']);
+
+        $studios = ['A' => [], 'B' => []]; // slot yang sudah terpakai per studio
+        $bookings = [];
 
         foreach ($transaksis as $t) {
             $duration = $t->packet->duration_minutes ?? 60;
             $start = Carbon::parse($t->session_time);
+            $occupied = $this->getOccupiedSlots($t->session_time, $duration);
 
-            $info = [
+            $studio = null;
+            foreach ($studios as $key => $used) {
+                if (!array_intersect($occupied, $used)) {
+                    $studio = $key;
+                    break;
+                }
+            }
+            if ($studio) {
+                $studios[$studio] = array_merge($studios[$studio], $occupied);
+            }
+
+            $bookings[] = [
                 'name' => $this->maskName($t->customer_name),
+                'product_name' => $t->packet->product->name ?? '-',
                 'packet_name' => $t->packet->name ?? '-',
                 'start' => $start->format('H:i'),
-                'end' => $start->copy()->addMinutes($duration)->format('H:i'),
+                'end' => $start->copy()->addMinutes(Packet::roundToSlotMinutes($duration))->format('H:i'),
+                'session_date' => Carbon::parse($t->session_date)->toDateString(),
+                'created_at' => optional($t->created_at)->toDateString(),
+                'studio' => $studio, // null = di luar kapasitas (data bentrok)
                 'status' => $t->status,
                 'dp_amount' => $t->status === 'dp' ? (int) $t->dp_amount : null,
+                'slots' => $occupied,
             ];
+        }
 
-            foreach ($this->getOccupiedSlots($t->session_time, $duration) as $slot) {
+        return $bookings;
+    }
+
+    /**
+     * Kelompokkan booking harian per slot untuk popover di grid.
+     */
+    private function groupBookingsPerSlot(array $dayBookings): array
+    {
+        $perSlot = [];
+        foreach ($dayBookings as $b) {
+            $info = $b;
+            unset($info['slots']);
+            foreach ($b['slots'] as $slot) {
                 $perSlot[$slot][] = $info;
             }
         }
-
         return $perSlot;
     }
 
