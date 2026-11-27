@@ -574,6 +574,59 @@
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(15,52,96,.2);
 }
+
+/* ── Popover detail slot ── */
+.sch-pop {
+    position: absolute; z-index: 1080;
+    width: 300px; max-width: calc(100vw - 32px);
+    background: var(--sc-white, #fff);
+    border: 1px solid var(--sc-border, #e5e7eb);
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(15,23,42,.18);
+    padding: 14px;
+    font-size: 12px; color: var(--sc-text, #1f2937);
+}
+.sch-pop-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+}
+.sch-pop-time { font-size: 15px; font-weight: 700; }
+.sch-pop-count {
+    font-size: 11px; font-weight: 600;
+    padding: 3px 10px; border-radius: 20px;
+    background: #FFF8E1; color: #92400E;
+}
+.sch-pop-date { font-size: 11px; color: var(--sc-slate, #64748b); margin: -6px 0 10px; }
+.sch-pop-studio {
+    border: 1px solid var(--sc-border, #e5e7eb);
+    border-radius: 10px; padding: 10px 12px;
+    margin-bottom: 8px;
+}
+.sch-pop-studio.is-empty { border-style: dashed; color: var(--sc-slate, #64748b); }
+.sch-pop-studio-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .4px;
+    text-transform: uppercase; color: var(--sc-slate, #64748b);
+    margin-bottom: 4px;
+}
+.sch-pop-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sch-pop-name { font-size: 13px; font-weight: 700; letter-spacing: .5px; }
+.sch-pop-sub  { font-size: 11px; color: var(--sc-slate, #64748b); margin-top: 2px; }
+.sch-pop-badge {
+    font-size: 10px; font-weight: 600; white-space: nowrap;
+    padding: 2px 8px; border-radius: 20px;
+}
+.sch-pop-badge.st-paid   { background: #d1fae5; color: #065f46; }
+.sch-pop-badge.st-dp     { background: #dbeafe; color: #1e40af; }
+.sch-pop-badge.st-unpaid { background: #fef3c7; color: #92400e; }
+.sch-pop-dp {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 6px; font-size: 11px; color: var(--sc-slate, #64748b);
+}
+.sch-pop-dp-val { font-weight: 700; color: var(--sc-text, #1f2937); font-variant-numeric: tabular-nums; }
+.sch-pop-eye {
+    background: none; border: none; padding: 0 2px;
+    color: var(--sc-blue, #0f3460); cursor: pointer; font-size: 15px; line-height: 1;
+}
 </style>
 
 
@@ -740,6 +793,7 @@ async function fetchSlots(dateStr) {
 
 function renderSlotGrid(dateStr) {
     const grid = document.getElementById('sc-slot-grid');
+    closeSlotPopover();
     grid.innerHTML = '';
     grid.classList.remove('d-none');
 
@@ -777,11 +831,113 @@ function renderSlotGrid(dateStr) {
                 btn.classList.add('rs-slot-selected');
             }
             btn.onclick = () => selectRsSlot(slot.time, dateStr);
+        } else if (slot.bookings && slot.bookings.length) {
+            // Slot terisi: klik untuk lihat detail siapa yang booking
+            btn.disabled = false;
+            btn.style.cursor = 'pointer';
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                toggleSlotPopover(btn, slot, dateStr);
+            };
         }
 
         grid.appendChild(btn);
     });
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   POPOVER DETAIL SLOT (Studio A / Studio B)
+═══════════════════════════════════════════════════════════════════ */
+let _popEl = null, _popAnchor = null;
+
+const escHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
+const STATUS_MAP = {
+    'sudah dibayar': { label: 'Lunas',         cls: 'st-paid' },
+    'dp':            { label: 'DP',            cls: 'st-dp' },
+    'belum dibayar': { label: 'Belum Dibayar', cls: 'st-unpaid' },
+};
+
+function closeSlotPopover() {
+    if (_popEl) _popEl.remove();
+    _popEl = null; _popAnchor = null;
+}
+
+function toggleSlotPopover(btn, slot, dateStr) {
+    if (_popAnchor === btn) { closeSlotPopover(); return; }
+    closeSlotPopover();
+
+    const studios = ['Studio A', 'Studio B'].map((label, i) => {
+        const b = slot.bookings[i];
+        if (!b) {
+            return `<div class="sch-pop-studio is-empty">
+                        <div class="sch-pop-studio-label">${label}</div>
+                        <div>— Kosong</div>
+                    </div>`;
+        }
+        const st = STATUS_MAP[b.status] || { label: b.status, cls: 'st-unpaid' };
+        const dp = (b.status === 'dp' && b.dp_amount != null)
+            ? `<div class="sch-pop-dp">
+                   <span>DP:</span>
+                   <span class="sch-pop-dp-val" data-amount="${escHtml(formatRp(b.dp_amount))}">Rp ••••••</span>
+                   <button type="button" class="sch-pop-eye" title="Tampilkan nominal" aria-label="Tampilkan nominal DP">
+                       <i class="mdi mdi-eye-outline"></i>
+                   </button>
+               </div>`
+            : '';
+        return `<div class="sch-pop-studio">
+                    <div class="sch-pop-studio-label">${label}</div>
+                    <div class="sch-pop-row">
+                        <span class="sch-pop-name">${escHtml(b.name)}</span>
+                        <span class="sch-pop-badge ${st.cls}">${escHtml(st.label)}</span>
+                    </div>
+                    <div class="sch-pop-sub">${escHtml(b.packet_name)} · ${escHtml(b.start)} – ${escHtml(b.end)}</div>
+                    ${dp}
+                </div>`;
+    }).join('');
+
+    const pop = document.createElement('div');
+    pop.className = 'sch-pop';
+    pop.innerHTML = `
+        <div class="sch-pop-head">
+            <span class="sch-pop-time">${escHtml(slot.time)}</span>
+            <span class="sch-pop-count">${Math.min(slot.bookings.length, slot.max)} / ${slot.max} terisi</span>
+        </div>
+        <div class="sch-pop-date">${escHtml(formatDate(dateStr))}</div>
+        ${studios}`;
+
+    // Toggle tampil/sembunyi nominal DP
+    pop.querySelectorAll('.sch-pop-eye').forEach(eye => {
+        eye.onclick = (e) => {
+            e.stopPropagation();
+            const val  = eye.previousElementSibling;
+            const icon = eye.querySelector('i');
+            const shown = eye.dataset.shown === '1';
+            val.textContent = shown ? 'Rp ••••••' : val.dataset.amount;
+            icon.className  = shown ? 'mdi mdi-eye-outline' : 'mdi mdi-eye-off-outline';
+            eye.dataset.shown = shown ? '0' : '1';
+            eye.title = shown ? 'Tampilkan nominal' : 'Sembunyikan nominal';
+        };
+    });
+    pop.addEventListener('click', e => e.stopPropagation());
+
+    document.body.appendChild(pop);
+
+    // Posisikan di bawah tombol, tetap di dalam viewport
+    const r  = btn.getBoundingClientRect();
+    const pw = pop.offsetWidth;
+    let left = r.left + window.scrollX + r.width / 2 - pw / 2;
+    left = Math.max(window.scrollX + 16, Math.min(left, window.scrollX + document.documentElement.clientWidth - pw - 16));
+    pop.style.left = left + 'px';
+    pop.style.top  = (r.bottom + window.scrollY + 8) + 'px';
+
+    _popEl = pop; _popAnchor = btn;
+}
+
+document.addEventListener('click', closeSlotPopover);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSlotPopover(); });
+window.addEventListener('resize', closeSlotPopover);
 
 /* ═══════════════════════════════════════════════════════════════════
    RESCHEDULE — STEP 1: Cari Booking

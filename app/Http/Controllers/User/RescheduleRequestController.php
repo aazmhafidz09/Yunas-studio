@@ -61,6 +61,7 @@ class RescheduleRequestController extends Controller
         }
 
         $bookedCounts = $this->getBookedCountPerSlot($date);
+        $bookingsPerSlot = $this->getBookingsPerSlot($date);
 
         $slots = [];
         foreach ($allSlots as $time) {
@@ -86,6 +87,9 @@ class RescheduleRequestController extends Controller
                 'booked' => $maxBookedInRange,
                 'max' => 2,
                 'available' => $rangeAvailable,
+                // Detail booking yang menempati slot ini (nama sudah disensor).
+                // Urutan menentukan studio: index 0 = Studio A, index 1 = Studio B.
+                'bookings' => $bookingsPerSlot[$time] ?? [],
             ];
         }
 
@@ -346,6 +350,59 @@ class RescheduleRequestController extends Controller
         }
 
         return $booked;
+    }
+
+    /**
+     * Daftar booking aktif yang menempati setiap slot di 1 hari, untuk
+     * ditampilkan di popover jadwal publik. Nama customer disensor di server
+     * agar nama lengkap tidak pernah terkirim ke browser.
+     */
+    private function getBookingsPerSlot(string $date): array
+    {
+        $perSlot = [];
+
+        $transaksis = Gateway::whereDate('session_date', $date)
+            ->whereNotIn('status', ['gagal'])
+            ->with('packet:id,name,duration_minutes')
+            ->orderBy('session_time')
+            ->orderBy('transaction_id')
+            ->get(['transaction_id', 'customer_name', 'packet_id', 'status', 'dp_amount', 'session_time']);
+
+        foreach ($transaksis as $t) {
+            $duration = $t->packet->duration_minutes ?? 60;
+            $start = Carbon::parse($t->session_time);
+
+            $info = [
+                'name' => $this->maskName($t->customer_name),
+                'packet_name' => $t->packet->name ?? '-',
+                'start' => $start->format('H:i'),
+                'end' => $start->copy()->addMinutes($duration)->format('H:i'),
+                'status' => $t->status,
+                'dp_amount' => $t->status === 'dp' ? (int) $t->dp_amount : null,
+            ];
+
+            foreach ($this->getOccupiedSlots($t->session_time, $duration) as $slot) {
+                $perSlot[$slot][] = $info;
+            }
+        }
+
+        return $perSlot;
+    }
+
+    /**
+     * "Relingga Aditya" → "R******* A*****"
+     */
+    private function maskName(?string $name): string
+    {
+        $words = preg_split('/\s+/', trim((string) $name), -1, PREG_SPLIT_NO_EMPTY);
+        if (empty($words)) {
+            return '-';
+        }
+
+        return implode(' ', array_map(function ($w) {
+            $len = mb_strlen($w);
+            return mb_substr($w, 0, 1) . str_repeat('*', max($len - 1, 1));
+        }, $words));
     }
 
     // ═══════════════════════════════════════════════════════════════════
