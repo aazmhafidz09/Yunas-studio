@@ -133,6 +133,12 @@
                             <span>Kapasitas Editing</span>
                         </a>
                     </li>
+                    <li>
+                        <a href="{{ route('promos.index') }}" class="waves-effect {{ request()->routeIs('promos.*') ? 'active' : '' }}" title="Bagikan Promo ke Pelanggan">
+                            <i class="uil-megaphone"></i>
+                            <span>Bagikan Promo</span>
+                        </a>
+                    </li>
                 @endif
             </ul>
         </div>

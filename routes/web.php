@@ -26,6 +26,7 @@ use App\Http\Controllers\User\PhotoController;
 use App\Http\Controllers\User\AccountController;
 use App\Http\Controllers\PhotoSelectionController;
 use App\Http\Controllers\EditingCapacityController;
+use App\Http\Controllers\PromoController;
  
 
 
@@ -134,6 +135,13 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/kapasitas-editing/default', [EditingCapacityController::class, 'updateDefault'])->name('editing-capacity.update-default');
     Route::post('/kapasitas-editing/date', [EditingCapacityController::class, 'storeDateOverride'])->name('editing-capacity.store-date');
     Route::delete('/kapasitas-editing/date/{editingCapacity}', [EditingCapacityController::class, 'destroyDateOverride'])->name('editing-capacity.destroy-date');
+
+    // Admin: bagikan promo ke WhatsApp pelanggan dari data transaksi
+    Route::get('/bagikan-promo', [PromoController::class, 'index'])->name('promos.index');
+    Route::post('/bagikan-promo', [PromoController::class, 'store'])->name('promos.store');
+    Route::put('/bagikan-promo/{promo}', [PromoController::class, 'update'])->name('promos.update');
+    Route::delete('/bagikan-promo/{promo}', [PromoController::class, 'destroy'])->name('promos.destroy');
+    Route::post('/bagikan-promo/log-share', [PromoController::class, 'logShare'])->name('promos.log-share');
 
 
     Route::prefix('transaksi/{transaksi}')->name('transaksi.')->group(function () {
