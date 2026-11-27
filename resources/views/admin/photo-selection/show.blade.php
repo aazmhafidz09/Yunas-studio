@@ -92,6 +92,10 @@
                                 @endif
                                 <br>
                                 <i class="uil-processing me-1"></i>Status proses: <span class="badge bg-secondary">{{ $transaksi->process_status }}</span>
+                                @if(!empty($editingQueueInfo))
+                                    <br><i class="uil-layers-alt me-1"></i>Antrian editing: <span class="badge bg-primary">Antrian ke - {{ $editingQueueInfo['queue_number'] }}</span>
+                                    <span class="text-muted">({{ $editingQueueInfo['estimated_date_label'] }} · Slot {{ $editingQueueInfo['day_slot'] }}/{{ $editingQueueInfo['day_capacity'] }})</span>
+                                @endif
                                 @if($transaksi->edit_selection_submitted_at)
                                     <br><i class="uil-clock me-1"></i>Diajukan: {{ $transaksi->edit_selection_submitted_at->format('d M Y H:i') }}
                                 @endif

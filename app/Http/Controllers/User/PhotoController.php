@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\SelectedPhoto;
 use App\Models\Transaksi;
+use App\Services\EditingQueueService;
 use App\Services\GoogleDriveService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,10 +13,12 @@ use Illuminate\Support\Facades\DB;
 class PhotoController extends Controller
 {
     protected GoogleDriveService $googleDriveService;
+    protected EditingQueueService $editingQueueService;
 
-    public function __construct(GoogleDriveService $googleDriveService)
+    public function __construct(GoogleDriveService $googleDriveService, EditingQueueService $editingQueueService)
     {
         $this->googleDriveService = $googleDriveService;
+        $this->editingQueueService = $editingQueueService;
     }
 
     /**
@@ -100,6 +103,12 @@ class PhotoController extends Controller
                 ? $this->buildAdminWhatsappLink($selectedTransaksi, count($selectedPhotoIds), $retouchLimit)
                 : null;
 
+        // 7. Editing queue status & daily capacity info
+        $queueSchedule = $this->editingQueueService->buildSchedule();
+        $editingQueueInfo = $selectedTransaksi
+            ? ($queueSchedule['by_transaction_id'][$selectedTransaksi->transaction_id] ?? null)
+            : null;
+
         return view('user.photo.index', [
             'transactions' => $transactions,
             'selectedTransaksi' => $selectedTransaksi,
@@ -113,6 +122,8 @@ class PhotoController extends Controller
             'selectedPhotoIds' => $selectedPhotoIds,
             'canSelect' => $canSelect,
             'waAdminLink' => $waAdminLink,
+            'editingQueueInfo' => $editingQueueInfo,
+            'queueSchedule' => $queueSchedule,
         ]);
     }
 
@@ -333,11 +344,18 @@ class PhotoController extends Controller
 
         $transaksi->edit_selection_status = Transaksi::EDIT_SELECTION_SUBMITTED;
         $transaksi->edit_selection_submitted_at = now();
+        $transaksi->editing_queued_at = $transaksi->editing_queued_at ?? now();
+        $transaksi->editing_completed_at = null;
         $transaksi->edit_selection_note = null;
         $transaksi->save();
 
+        $queueInfo = $this->editingQueueService->getQueueInfoForTransaction($transaksi);
+        $queueText = $queueInfo
+            ? " Anda mendapat antrian ke - {$queueInfo['queue_number']} (estimasi edit: {$queueInfo['estimated_date_label']})."
+            : '';
+
         return $redirect
-            ->with('success', "{$count} foto berhasil diajukan ke admin. Tekan tombol \"Kirim ke WhatsApp Admin\" agar admin segera memproses pilihan Anda.")
+            ->with('success', "{$count} foto berhasil diajukan ke admin.{$queueText} Tekan tombol \"Kirim ke WhatsApp Admin\" agar admin segera memproses pilihan Anda.")
             ->with('just_submitted', true);
     }
 
@@ -355,6 +373,7 @@ class PhotoController extends Controller
 
         $transaksi->edit_selection_status = Transaksi::EDIT_SELECTION_DRAFT;
         $transaksi->edit_selection_submitted_at = null;
+        $transaksi->editing_queued_at = null;
         $transaksi->save();
 
         return $redirect->with('success', 'Pengajuan ditarik. Silakan ubah pilihan foto Anda lalu ajukan kembali.');

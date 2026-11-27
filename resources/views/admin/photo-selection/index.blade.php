@@ -100,7 +100,17 @@
                                             </span>
                                         </td>
                                         <td class="font-size-13">{{ $time ? $time->format('d M Y H:i') : '-' }}</td>
-                                        <td><span class="badge bg-secondary">{{ $trx->process_status }}</span></td>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ $trx->process_status }}</span>
+                                            @if(!empty($editingQueueMap[$trx->transaction_id]))
+                                                @php $qInfo = $editingQueueMap[$trx->transaction_id]; @endphp
+                                                <div class="mt-1">
+                                                    <span class="badge bg-soft-primary text-primary font-size-11">
+                                                        Antrian #{{ $qInfo['queue_number'] }} · {{ $qInfo['estimated_date_label'] }}
+                                                    </span>
+                                                </div>
+                                            @endif
+                                        </td>
                                         <td class="text-end">
                                             <a href="{{ route('photo-selections.show', $trx->transaction_id) }}" class="btn btn-sm btn-primary">
                                                 <i class="uil-eye me-1"></i>{{ $status === 'submitted' ? 'Review' : 'Lihat' }}

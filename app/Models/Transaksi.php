@@ -37,6 +37,8 @@ class Transaksi extends Model
     protected $casts = [
         'edit_selection_submitted_at' => 'datetime',
         'edit_selection_reviewed_at' => 'datetime',
+        'editing_queued_at' => 'datetime',
+        'editing_completed_at' => 'datetime',
     ];
 
     // Review state of the customer's "photos to edit" selection (column edit_selection_status)

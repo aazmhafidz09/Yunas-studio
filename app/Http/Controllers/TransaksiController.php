@@ -470,6 +470,11 @@ class TransaksiController extends Controller
                 $transaksi->save();
             }
 
+            $this->syncEditingQueueTimestamps($transaksi);
+            if ($transaksi->isDirty(['editing_queued_at', 'editing_completed_at'])) {
+                $transaksi->save();
+            }
+
             // LOGIKA PEMASUKAN DI UPDATE
             if ($validatedData['status'] === 'sudah dibayar') {
                 $this->recordIncome($transaksi);
@@ -507,6 +512,7 @@ class TransaksiController extends Controller
             if ($field === 'url_images' && !empty($value) && $transaksi->process_status === 'Pelanggan Belum Foto') {
                 $transaksi->process_status = 'Pelanggan Pilih Foto';
             }
+            $this->syncEditingQueueTimestamps($transaksi);
             $transaksi->save();
             return redirect()->back()->with('success', 'Link berhasil diperbarui.');
         }
@@ -538,6 +544,8 @@ class TransaksiController extends Controller
         } elseif ($field === 'payment_type') {
             // Handle direct change of payment type column without status change
             $transaksi->payment_type = $value;
+        } elseif ($field === 'process_status') {
+            $this->syncEditingQueueTimestamps($transaksi);
         }
         
         $transaksi->save();
@@ -593,9 +601,38 @@ class TransaksiController extends Controller
             $transaksi->process_status = 'Proses Edit';
         }
 
+        $this->syncEditingQueueTimestamps($transaksi);
         $transaksi->save();
 
         return redirect()->back()->with('success', 'Data pilihan foto pelanggan berhasil diperbarui.');
+    }
+
+    /**
+     * Keep editing_queued_at and editing_completed_at aligned with process_status & result URL.
+     */
+    private function syncEditingQueueTimestamps(Transaksi $transaksi): void
+    {
+        $hasResultUrl = !empty(trim((string) $transaksi->url_photos_result));
+        $isPostEditingStatus = in_array($transaksi->process_status, ['Proses Cetak', 'Selesai'], true);
+
+        if ($hasResultUrl || $isPostEditingStatus) {
+            $transaksi->editing_completed_at = $transaksi->editing_completed_at ?? now();
+            return;
+        }
+
+        $transaksi->editing_completed_at = null;
+
+        if ($transaksi->process_status === 'Proses Edit') {
+            $transaksi->editing_queued_at = $transaksi->editing_queued_at ?? now();
+            return;
+        }
+
+        if (!in_array($transaksi->edit_selection_status, [
+            Transaksi::EDIT_SELECTION_SUBMITTED,
+            Transaksi::EDIT_SELECTION_APPROVED,
+        ], true)) {
+            $transaksi->editing_queued_at = null;
+        }
     }
 
     public function destroy(string $id)

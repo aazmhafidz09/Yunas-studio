@@ -125,6 +125,15 @@
                         <span>Payment Gateway</span>
                     </a>
                 </li>
+
+                @if(Auth::user()->isAdmin() || Auth::user()->isKasir())
+                    <li>
+                        <a href="{{ route('editing-capacity.index') }}" class="waves-effect {{ request()->routeIs('editing-capacity.*') ? 'active' : '' }}" title="Kapasitas Editing Per Hari">
+                            <i class="uil-sliders-v-alt"></i>
+                            <span>Kapasitas Editing</span>
+                        </a>
+                    </li>
+                @endif
             </ul>
         </div>
         <!-- Sidebar -->

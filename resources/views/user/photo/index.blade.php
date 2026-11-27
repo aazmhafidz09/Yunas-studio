@@ -272,10 +272,32 @@
                             </div>
                             @if($type === 'result')
                                 <h5 class="mb-2">Hasil Foto Edit Belum Tersedia</h5>
-                                <p class="text-muted mb-3" style="max-width: 550px; margin: 0 auto;">
-                                    Foto pilihan Anda untuk transaksi <strong>#{{ $selectedTransaksi->receipt_code }}</strong> belum selesai diedit.
-                                    Hasilnya akan tampil di sini setelah proses editing selesai.
-                                </p>
+                                @if(!empty($editingQueueInfo))
+                                    <p class="text-muted mb-3" style="max-width: 550px; margin: 0 auto;">
+                                        Foto pilihan Anda <strong>antrian ke - {{ $editingQueueInfo['queue_number'] }}</strong> untuk transaksi <strong>#{{ $selectedTransaksi->receipt_code }}</strong> belum selesai diedit.
+                                        Hasilnya akan tampil di sini setelah proses editing selesai.
+                                    </p>
+                                    <div class="d-flex flex-wrap justify-content-center gap-2 mb-3">
+                                        <span class="badge bg-soft-primary text-primary font-size-12 px-3 py-2">
+                                            <i class="uil-calendar-alt me-1"></i>Estimasi Edit: <strong>{{ $editingQueueInfo['estimated_date_label'] }}</strong>
+                                        </span>
+                                        <span class="badge bg-soft-info text-info font-size-12 px-3 py-2">
+                                            <i class="uil-layers-alt me-1"></i>Slot ke-{{ $editingQueueInfo['day_slot'] }} dari {{ $editingQueueInfo['day_capacity'] }} antrian/hari
+                                        </span>
+                                    </div>
+                                @else
+                                    <p class="text-muted mb-3" style="max-width: 550px; margin: 0 auto;">
+                                        Foto pilihan Anda untuk transaksi <strong>#{{ $selectedTransaksi->receipt_code }}</strong> belum selesai diedit.
+                                        Hasilnya akan tampil di sini setelah proses editing selesai.
+                                    </p>
+                                    @if(!empty($queueSchedule) && $selectedTransaksi->canCustomerEditSelection())
+                                        <div class="d-flex flex-wrap justify-content-center gap-2 mb-3">
+                                            <span class="badge bg-soft-secondary text-secondary font-size-12 px-3 py-2">
+                                                <i class="uil-clock me-1"></i>Perkiraan jika diajukan sekarang: <strong>antrian ke - {{ $queueSchedule['next_queue_number'] }}</strong> ({{ $queueSchedule['next_estimated_date_label'] }})
+                                            </span>
+                                        </div>
+                                    @endif
+                                @endif
                             @else
                                 <h5 class="mb-2">Foto Mentah Belum Tersedia</h5>
                                 <p class="text-muted mb-3" style="max-width: 550px; margin: 0 auto;">
@@ -386,6 +408,12 @@
                                             </span>
                                         @endif
                                         <div class="text-muted font-size-12 mt-1">Setelah selesai memilih, tekan <strong>Ajukan ke Admin</strong> untuk diproses.</div>
+                                        @if(!empty($queueSchedule))
+                                            <div class="text-primary font-size-12 mt-1">
+                                                <i class="uil-clock me-1"></i>Kapasitas editing hari ini: <strong>{{ $queueSchedule['today_used'] }} / {{ $queueSchedule['today_capacity'] }}</strong>
+                                                &middot; Perkiraan jika diajukan sekarang: <strong>antrian ke - {{ $queueSchedule['next_queue_number'] }}</strong> ({{ $queueSchedule['next_estimated_date_label'] }}).
+                                            </div>
+                                        @endif
                                     </div>
                                     <div class="flex-shrink-0 d-flex flex-column flex-sm-row align-items-sm-center gap-2">
                                         <div>
@@ -419,7 +447,13 @@
                                     @if($selectedTransaksi->edit_selection_submitted_at)
                                         pada {{ $selectedTransaksi->edit_selection_submitted_at->format('d M Y H:i') }}
                                     @endif.
-                                    <div class="font-size-12">
+                                    @if(!empty($editingQueueInfo))
+                                        <div class="mt-1">
+                                            <span class="badge bg-primary font-size-12 me-1">Antrian ke - {{ $editingQueueInfo['queue_number'] }}</span>
+                                            <span class="font-size-12">Estimasi edit: <strong>{{ $editingQueueInfo['estimated_date_label'] }}</strong> (Slot {{ $editingQueueInfo['day_slot'] }}/{{ $editingQueueInfo['day_capacity'] }})</span>
+                                        </div>
+                                    @endif
+                                    <div class="font-size-12 mt-1">
                                         @if($waAdminLink)
                                             Kirim daftar foto ke WhatsApp admin agar segera diproses.
                                         @endif
@@ -447,6 +481,12 @@
                                 <div>
                                     <i class="uil-check-circle me-1"></i><strong>Pilihan foto Anda telah disetujui admin.</strong>
                                     {{ count($selectedPhotoIds) }}{{ $retouchLimit > 0 ? ' / ' . $retouchLimit : '' }} foto akan diedit.
+                                    @if(!empty($editingQueueInfo))
+                                        <div class="mt-1">
+                                            <span class="badge bg-primary font-size-12 me-1">Antrian ke - {{ $editingQueueInfo['queue_number'] }}</span>
+                                            <span class="font-size-12">Estimasi edit: <strong>{{ $editingQueueInfo['estimated_date_label'] }}</strong> (Slot {{ $editingQueueInfo['day_slot'] }}/{{ $editingQueueInfo['day_capacity'] }})</span>
+                                        </div>
+                                    @endif
                                     Hubungi admin studio jika ingin mengubah pilihan.
                                 </div>
                                 @if($waAdminLink)

@@ -25,6 +25,7 @@ use App\Http\Controllers\RescheduleController;
 use App\Http\Controllers\User\PhotoController;
 use App\Http\Controllers\User\AccountController;
 use App\Http\Controllers\PhotoSelectionController;
+use App\Http\Controllers\EditingCapacityController;
  
 
 
@@ -127,6 +128,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/pilihan-foto/{transaksi}/approve', [PhotoSelectionController::class, 'approve'])->name('photo-selections.approve');
     Route::post('/pilihan-foto/{transaksi}/reject', [PhotoSelectionController::class, 'reject'])->name('photo-selections.reject');
     Route::post('/pilihan-foto/{transaksi}/reopen', [PhotoSelectionController::class, 'reopen'])->name('photo-selections.reopen');
+
+    // Admin: kapasitas editing per hari & antrian editing
+    Route::get('/kapasitas-editing', [EditingCapacityController::class, 'index'])->name('editing-capacity.index');
+    Route::put('/kapasitas-editing/default', [EditingCapacityController::class, 'updateDefault'])->name('editing-capacity.update-default');
+    Route::post('/kapasitas-editing/date', [EditingCapacityController::class, 'storeDateOverride'])->name('editing-capacity.store-date');
+    Route::delete('/kapasitas-editing/date/{editingCapacity}', [EditingCapacityController::class, 'destroyDateOverride'])->name('editing-capacity.destroy-date');
 
 
     Route::prefix('transaksi/{transaksi}')->name('transaksi.')->group(function () {

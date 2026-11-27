@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Transaksi;
+use App\Services\EditingQueueService;
 use App\Services\GoogleDriveService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,8 +13,10 @@ use Illuminate\Support\Facades\DB;
  */
 class PhotoSelectionController extends Controller
 {
-    public function __construct(protected GoogleDriveService $googleDriveService)
-    {
+    public function __construct(
+        protected GoogleDriveService $googleDriveService,
+        protected EditingQueueService $editingQueueService
+    ) {
     }
 
     private function authorizeStaff(): void
@@ -65,8 +68,9 @@ class PhotoSelectionController extends Controller
         }
 
         $transactions = $query->paginate(15)->withQueryString();
+        $editingQueueMap = $this->editingQueueService->buildSchedule()['by_transaction_id'];
 
-        return view('admin.photo-selection.index', compact('transactions', 'status', 'counts'));
+        return view('admin.photo-selection.index', compact('transactions', 'status', 'counts', 'editingQueueMap'));
     }
 
     /**
@@ -113,8 +117,9 @@ class PhotoSelectionController extends Controller
         });
 
         $retouchLimit = $transaksi->retouch_limit;
+        $editingQueueInfo = $this->editingQueueService->getQueueInfoForTransaction($transaksi);
 
-        return view('admin.photo-selection.show', compact('transaksi', 'photos', 'retouchLimit', 'driveError'));
+        return view('admin.photo-selection.show', compact('transaksi', 'photos', 'retouchLimit', 'driveError', 'editingQueueInfo'));
     }
 
     /**
@@ -133,6 +138,8 @@ class PhotoSelectionController extends Controller
 
         $transaksi->edit_selection_status = Transaksi::EDIT_SELECTION_APPROVED;
         $transaksi->edit_selection_reviewed_at = now();
+        $transaksi->editing_queued_at = $transaksi->editing_queued_at ?? $transaksi->edit_selection_submitted_at ?? now();
+        $transaksi->editing_completed_at = null;
         $transaksi->edit_selection_note = null;
 
         // Selection is final → move the order on to editing
@@ -168,6 +175,7 @@ class PhotoSelectionController extends Controller
             $transaksi->edit_selection_note = $data['note'] ?? null;
             $transaksi->edit_selection_reviewed_at = now();
             $transaksi->edit_selection_submitted_at = null;
+            $transaksi->editing_queued_at = null;
 
             if (!in_array($transaksi->process_status, Transaksi::EDIT_SELECTABLE_PROCESS_STATUSES, true)) {
                 $transaksi->process_status = 'Pelanggan Pilih Foto';
@@ -193,6 +201,7 @@ class PhotoSelectionController extends Controller
         $transaksi->edit_selection_status = Transaksi::EDIT_SELECTION_DRAFT;
         $transaksi->edit_selection_reviewed_at = null;
         $transaksi->edit_selection_submitted_at = null;
+        $transaksi->editing_queued_at = null;
         $transaksi->edit_selection_note = null;
 
         // The customer can only pick photos while the order is in a "choosing" process status
