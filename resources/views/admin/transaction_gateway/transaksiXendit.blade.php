@@ -164,6 +164,7 @@
                                     <th>Status Pembayaran</th>
                                     <th>Status Pengerjaan</th>
                                     <th>Detail</th>
+                                    <th class="text-center">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -213,7 +214,7 @@
 
                                         {{-- Payment Type Column --}}
                                         <!-- <td>
-                                            <form action="{{ route('transaksi.update-status', $transaksi->transaction_id) }}" method="POST">
+                                            <form action="{{ route('gateway.update-status', $transaksi->transaction_id) }}" method="POST">
                                                 @csrf @method('PUT')
                                                 <input type="hidden" name="field" value="payment_type">
                                                 <select name="value" class="form-select form-select-sm" onchange="this.form.submit()">
@@ -240,7 +241,7 @@
 
                                         <td>
                                             {{-- Payment Status Dropdown with Modal Trigger --}}
-                                            <form action="{{ route('transaksi.update-status', $transaksi->transaction_id) }}" method="POST" class="status-update-form">
+                                            <form action="{{ route('gateway.update-status', $transaksi->transaction_id) }}" method="POST" class="status-update-form">
                                                 @csrf @method('PUT')
                                                 <input type="hidden" name="field" value="status">
                                                 <select name="value" 
@@ -257,7 +258,7 @@
                                             </form>
                                         </td>
                                         <td>
-                                            <form action="{{ route('transaksi.update-status', $transaksi->transaction_id) }}" method="POST">
+                                            <form action="{{ route('gateway.update-status', $transaksi->transaction_id) }}" method="POST">
                                                 @csrf @method('PUT')
                                                 <input type="hidden" name="field" value="process_status">
                                                 <select name="value" id="process-status-select-{{ $transaksi->transaction_id }}" class="form-select form-select-sm {{ $processStatusConfig[$transaksi->process_status]['class'] ?? '' }}" onchange="this.form.submit()">
@@ -273,10 +274,36 @@
                                         <td>
                                             <button type="button" class="btn btn-primary btn-sm btn-rounded" data-bs-toggle="modal" data-bs-target="#detailModal{{ $transaksi->transaction_id }}">Lihat</button>
                                         </td>
+                                        <td class="text-center">
+                                            <div class="d-flex gap-1 justify-content-center">
+                                                <button type="button" class="btn btn-soft-warning btn-sm btn-gw-edit" title="Edit"
+                                                    data-url="{{ route('gateway.update', $transaksi->transaction_id) }}"
+                                                    data-customer_name="{{ $transaksi->customer_name }}"
+                                                    data-phone_number="{{ $transaksi->phone_number }}"
+                                                    data-packet_id="{{ $transaksi->packet_id }}"
+                                                    data-session_date="{{ $transaksi->session_date }}"
+                                                    data-session_time="{{ $transaksi->session_time ? substr($transaksi->session_time, 0, 5) : '' }}"
+                                                    data-total_price="{{ (int) $transaksi->total_price }}"
+                                                    data-dp_amount="{{ (int) $transaksi->dp_amount }}"
+                                                    data-discount="{{ (int) $transaksi->discount }}"
+                                                    data-status="{{ $transaksi->status }}"
+                                                    data-process_status="{{ $transaksi->process_status }}"
+                                                    data-payment_type="{{ $transaksi->payment_type }}"
+                                                    data-note="{{ $transaksi->note }}">
+                                                    <i class="bx bx-edit-alt"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-soft-danger btn-sm btn-gw-delete" title="Hapus"
+                                                    data-url="{{ route('gateway.destroy', $transaksi->transaction_id) }}"
+                                                    data-name="{{ $transaksi->customer_name }}"
+                                                    data-order="{{ $transaksi->order_id ?? $transaksi->receipt_code }}">
+                                                    <i class="bx bx-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
                                         
                                     </tr>
                                 @empty
-                                    <tr><td colspan="9" class="text-center">Data transaksi tidak ditemukan.</td></tr>
+                                    <tr><td colspan="10" class="text-center">Data transaksi tidak ditemukan.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -434,6 +461,125 @@
         </div>
     </div>
 
+    {{-- ══════════ Modal Edit Transaksi Gateway ══════════ --}}
+    <div class="modal fade" id="gwEditModal" tabindex="-1" aria-labelledby="gwEditModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <form id="gwEditForm" novalidate>
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="gwEditModalLabel"><i class="bx bx-edit-alt me-1"></i> Edit Transaksi</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger d-none" id="gwEditError"></div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Nama Pelanggan <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="customer_name" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">No. WhatsApp</label>
+                                <input type="text" class="form-control" name="phone_number">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label">Paket</label>
+                                <select class="form-select" name="packet_id">
+                                    <option value="">— Pilih Paket —</option>
+                                    @foreach($packetsForFilter as $productName => $packets)
+                                        <optgroup label="{{ $productName }}">
+                                            @foreach($packets as $packet)
+                                                <option value="{{ $packet->id }}">{{ $packet->name }}</option>
+                                            @endforeach
+                                        </optgroup>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Tanggal Booking</label>
+                                <input type="date" class="form-control" name="session_date">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Jam Booking</label>
+                                <input type="time" class="form-control" name="session_time" step="1800">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Total Biaya (Rp) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="total_price" min="0" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Down Payment (Rp)</label>
+                                <input type="number" class="form-control" name="dp_amount" min="0">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Diskon (Rp)</label>
+                                <input type="number" class="form-control" name="discount" min="0">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Status Pembayaran <span class="text-danger">*</span></label>
+                                <select class="form-select" name="status" required>
+                                    <option value="belum dibayar">Belum Dibayar</option>
+                                    <option value="dp">DP (Uang Muka)</option>
+                                    <option value="sudah dibayar">Lunas</option>
+                                    <option value="gagal">Gagal / Kedaluwarsa</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Status Pengerjaan</label>
+                                <select class="form-select" name="process_status">
+                                    <option value="">—</option>
+                                    @foreach($processStatuses as $ps)
+                                        <option value="{{ $ps }}">{{ $ps }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Tipe Pembayaran</label>
+                                <input type="text" class="form-control" name="payment_type">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label">Catatan</label>
+                                <textarea class="form-control" name="note" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary" id="gwEditSubmit">
+                            <span class="spinner-border spinner-border-sm me-1 d-none" id="gwEditSpinner"></span>
+                            Simpan Perubahan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- ══════════ Modal Konfirmasi Hapus Transaksi Gateway ══════════ --}}
+    <div class="modal fade" id="gwDeleteModal" tabindex="-1" aria-labelledby="gwDeleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="gwDeleteModalLabel">Konfirmasi Hapus</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <i class="bx bx-error-circle text-danger" style="font-size: 56px;"></i>
+                    <p class="mt-2 mb-1 fw-semibold">Apakah Anda yakin ingin menghapus transaksi ini?</p>
+                    <p class="mb-1"><span id="gwDeleteName" class="fw-bold"></span> <span id="gwDeleteOrder" class="text-muted"></span></p>
+                    <p class="text-muted small mb-0">Tindakan ini tidak dapat dibatalkan.</p>
+                    <div class="alert alert-danger d-none mt-3 mb-0" id="gwDeleteError"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-danger" id="gwDeleteConfirm">
+                        <span class="spinner-border spinner-border-sm me-1 d-none" id="gwDeleteSpinner"></span>
+                        Ya, Hapus
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 @endsection
 
 @section('script')
@@ -518,6 +664,101 @@ document.addEventListener('DOMContentLoaded', function () {
 
     
     // =================================================
+    // EDIT & HAPUS TRANSAKSI GATEWAY (AJAX → reload)
+    // =================================================
+    (function () {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+        const editModalEl = document.getElementById('gwEditModal');
+        const deleteModalEl = document.getElementById('gwDeleteModal');
+        if (!editModalEl || !deleteModalEl) return;
+
+        const editModal = new bootstrap.Modal(editModalEl);
+        const deleteModal = new bootstrap.Modal(deleteModalEl);
+        const editForm = document.getElementById('gwEditForm');
+        const editErr = document.getElementById('gwEditError');
+        const editBtn = document.getElementById('gwEditSubmit');
+        const editSpin = document.getElementById('gwEditSpinner');
+        const delErr = document.getElementById('gwDeleteError');
+        const delBtn = document.getElementById('gwDeleteConfirm');
+        const delSpin = document.getElementById('gwDeleteSpinner');
+        const FIELDS = ['customer_name','phone_number','packet_id','session_date','session_time',
+                        'total_price','dp_amount','discount','status','process_status','payment_type','note'];
+        let editUrl = null, deleteUrl = null;
+
+        const showErr = (el, msg) => { el.innerHTML = msg; el.classList.remove('d-none'); };
+        const errorText = (data) => data?.errors
+            ? Object.values(data.errors).flat().join('<br>')
+            : (data?.message || 'Terjadi kesalahan. Silakan coba lagi.');
+
+        async function send(url, method, body) {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ ...(body || {}), _method: method }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw data;
+            return data;
+        }
+
+        document.querySelectorAll('.btn-gw-edit').forEach(btn => {
+            btn.addEventListener('click', () => {
+                editUrl = btn.dataset.url;
+                editErr.classList.add('d-none');
+                FIELDS.forEach(f => {
+                    const input = editForm.elements[f];
+                    if (input) input.value = btn.dataset[f] ?? '';
+                });
+                editModal.show();
+            });
+        });
+
+        editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            editErr.classList.add('d-none');
+            const payload = {};
+            FIELDS.forEach(f => {
+                const v = editForm.elements[f]?.value ?? '';
+                payload[f] = v === '' ? null : v;
+            });
+            editBtn.disabled = true; editSpin.classList.remove('d-none');
+            try {
+                await send(editUrl, 'PUT', payload);
+                window.location.reload();
+            } catch (data) {
+                showErr(editErr, errorText(data));
+                editBtn.disabled = false; editSpin.classList.add('d-none');
+            }
+        });
+
+        document.querySelectorAll('.btn-gw-delete').forEach(btn => {
+            btn.addEventListener('click', () => {
+                deleteUrl = btn.dataset.url;
+                delErr.classList.add('d-none');
+                document.getElementById('gwDeleteName').textContent = btn.dataset.name || '';
+                document.getElementById('gwDeleteOrder').textContent = btn.dataset.order ? '(' + btn.dataset.order + ')' : '';
+                deleteModal.show();
+            });
+        });
+
+        delBtn.addEventListener('click', async () => {
+            delBtn.disabled = true; delSpin.classList.remove('d-none');
+            try {
+                await send(deleteUrl, 'DELETE');
+                window.location.reload();
+            } catch (data) {
+                showErr(delErr, errorText(data));
+                delBtn.disabled = false; delSpin.classList.add('d-none');
+            }
+        });
+    })();
+
+    // =================================================
 
     // 2. UPDATED LOGIC for Payment Status Selection (WITH SKIP CHECK)
     document.querySelectorAll('.payment-status-select').forEach(selectElement => {
@@ -590,7 +831,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             urlInput.value = currentValue;
             urlFieldInput.value = field;
-            urlForm.action = `/transaksi/${transactionId}/update-status`;
+            urlForm.action = `/gateway/${transactionId}/update-status`;
             urlModal.show();
         });
     });
