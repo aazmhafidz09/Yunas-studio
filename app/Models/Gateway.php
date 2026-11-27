@@ -74,6 +74,11 @@ class Gateway extends Model
             ->withTimestamps();
     }
 
+    public function additionalRequests()
+    {
+        return $this->hasMany(BookingAdditionalRequest::class, 'transaction_id', 'transaction_id');
+    }
+
     public function selectedPhotos()
     {
         return $this->hasMany(SelectedPhoto::class, 'transaction_id', 'transaction_id');

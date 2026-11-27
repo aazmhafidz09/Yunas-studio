@@ -254,25 +254,69 @@ class EditingCapacityQueueTest extends TestCase
         $this->assertEquals(0, $schedule['today_remaining']);
         $this->assertEquals(3, $schedule['total_queued']);
 
-        // t1 takes today's 2nd slot (since 1 was completed today)
+        // t1 takes today's 2nd slot (since 1 was completed today) -> queue #2 today
         $q1 = $schedule['by_transaction_id'][$t1->transaction_id];
-        $this->assertEquals(1, $q1['queue_number']);
+        $this->assertEquals(2, $q1['queue_number']);
+        $this->assertEquals(1, $q1['overall_queue_number']);
         $this->assertEquals($today->toDateString(), $q1['estimated_date_string']);
         $this->assertEquals(2, $q1['day_slot']);
         $this->assertEquals(2, $q1['day_capacity']);
 
-        // t2 & t3 skip tomorrow (0 capacity) and land on dayAfter (capacity 3)
+        // t2 & t3 skip tomorrow (0 capacity) and land on dayAfter (capacity 3), resetting to queue #1 and #2!
         $q2 = $schedule['by_transaction_id'][$t2->transaction_id];
-        $this->assertEquals(2, $q2['queue_number']);
+        $this->assertEquals(1, $q2['queue_number']);
+        $this->assertEquals(2, $q2['overall_queue_number']);
         $this->assertEquals($dayAfter->toDateString(), $q2['estimated_date_string']);
         $this->assertEquals(1, $q2['day_slot']);
         $this->assertEquals(3, $q2['day_capacity']);
 
         $q3 = $schedule['by_transaction_id'][$t3->transaction_id];
-        $this->assertEquals(3, $q3['queue_number']);
+        $this->assertEquals(2, $q3['queue_number']);
+        $this->assertEquals(3, $q3['overall_queue_number']);
         $this->assertEquals($dayAfter->toDateString(), $q3['estimated_date_string']);
         $this->assertEquals(2, $q3['day_slot']);
         $this->assertEquals(3, $q3['day_capacity']);
+    }
+
+    public function test_twenty_first_queue_rolls_over_to_tomorrow_queue_number_one(): void
+    {
+        $today = Carbon::today();
+        $tomorrow = $today->copy()->addDay();
+
+        // Default capacity = 20/day
+        $transactions = [];
+        for ($i = 1; $i <= 21; $i++) {
+            $transactions[$i] = $this->makeTransaksi([
+                'process_status' => 'Proses Edit',
+                'edit_selection_status' => Transaksi::EDIT_SELECTION_APPROVED,
+                'editing_queued_at' => $today->copy()->addMinutes($i),
+            ]);
+        }
+
+        $schedule = app(EditingQueueService::class)->buildSchedule($today);
+
+        // 20th stays today as queue #20
+        $q20 = $schedule['by_transaction_id'][$transactions[20]->transaction_id];
+        $this->assertEquals(20, $q20['queue_number']);
+        $this->assertEquals($today->toDateString(), $q20['estimated_date_string']);
+
+        // 21st rolls over to tomorrow as queue #1
+        $q21 = $schedule['by_transaction_id'][$transactions[21]->transaction_id];
+        $this->assertEquals(1, $q21['queue_number']);
+        $this->assertEquals($tomorrow->toDateString(), $q21['estimated_date_string']);
+
+        // Next available preview is tomorrow queue #2
+        $this->assertEquals(2, $schedule['next_queue_number']);
+        $this->assertEquals($tomorrow->toDateString(), $schedule['next_estimated_date']->toDateString());
+
+        // Print invoice struk includes Estimasi Hasil Edit for queued transaction #21 (Besok, Antrian ke-1)
+        $admin = $this->makeUser(1, 'kasir_struk');
+        $this->actingAs($admin)
+            ->get(route('transaksi.print-invoice', $transactions[21]->transaction_id))
+            ->assertStatus(200)
+            ->assertSee('Est. Edit')
+            ->assertSee('Besok')
+            ->assertSee('Antrian ke-1');
     }
 
     public function test_user_photo_result_page_displays_queue_number_message(): void

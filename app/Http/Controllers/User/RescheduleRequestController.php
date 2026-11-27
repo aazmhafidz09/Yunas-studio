@@ -118,22 +118,22 @@ class RescheduleRequestController extends Controller
 
         $identifier = trim($request->identifier);
 
-        // Cari berdasarkan nomor HP atau order_id
+        // Cari berdasarkan nomor HP, nomor Invoice (receipt_code), atau order_id
         $query = Gateway::with('packet:id,name,duration_minutes,price')
             ->whereIn('status', self::ACTIVE_STATUSES)
             // Hanya booking yang tanggalnya hari ini atau ke depan
-            ->whereDate('session_date', '>=', now()->toDateString())
-            ->where(function ($q) use ($identifier) {
-                $q->where('phone_number', $identifier)
-                    ->orWhere('order_id', $identifier);
-            })
-            ->orderBy('session_date')
+            ->whereDate('session_date', '>=', now()->toDateString());
+
+        $this->applyIdentifierFilter($query, $identifier);
+
+        $query->orderBy('session_date')
             ->orderBy('session_time');
 
         $bookings = $query->get()->map(function ($t) {
             return [
                 'transaction_id' => $t->transaction_id,
-                'order_id' => $t->order_id,
+                'order_id' => $t->receipt_code ?: $t->order_id,
+                'receipt_code' => $t->receipt_code ?: $t->order_id,
                 'customer_name' => $t->customer_name,
                 'phone_number' => $t->phone_number,
                 'packet_name' => $t->packet->name ?? '-',
@@ -151,7 +151,7 @@ class RescheduleRequestController extends Controller
 
         if ($bookings->isEmpty()) {
             return response()->json([
-                'message' => 'Tidak ada booking aktif yang ditemukan untuk nomor HP atau Order ID tersebut.',
+                'message' => 'Tidak ada booking aktif yang ditemukan untuk nomor WhatsApp atau nomor Invoice tersebut.',
                 'bookings' => [],
             ], 404);
         }
@@ -178,7 +178,7 @@ class RescheduleRequestController extends Controller
     public function rescheduleRequest(Request $request): JsonResponse
     {
         $request->validate([
-            'transaction_id' => 'required|exists:reschedule_request,transaction_id',
+            'transaction_id' => 'required|exists:transaksi_gateway,transaction_id',
             'new_date' => 'required|date|after_or_equal:today',
             'new_time' => 'required|string',
             'identifier' => 'required|string|max:100',
@@ -187,16 +187,15 @@ class RescheduleRequestController extends Controller
 
         $identifier = trim($request->identifier);
 
-        // Cari transaksi & pastikan milik identifier ini
+        // Cari transaksi & pastikan milik identifier ini (No. WA / No. Invoice / Order ID)
         // Eager load packet.product agar tersedia untuk pesan WhatsApp
-        $transaksi = Gateway::with('packet.product')
+        $transaksiQuery = Gateway::with('packet.product')
             ->where('transaction_id', $request->transaction_id)
-            ->where(function ($q) use ($identifier) {
-                $q->where('phone_number', $identifier)
-                    ->orWhere('order_id', $identifier);
-            })
-            ->whereIn('status', self::ACTIVE_STATUSES)
-            ->first();
+            ->whereIn('status', self::ACTIVE_STATUSES);
+
+        $this->applyIdentifierFilter($transaksiQuery, $identifier);
+
+        $transaksi = $transaksiQuery->first();
 
         if (!$transaksi) {
             return response()->json([
@@ -297,6 +296,43 @@ class RescheduleRequestController extends Controller
     // ═══════════════════════════════════════════════════════════════════
     // HELPERS (sama dengan BookingController — bisa diextract ke trait)
     // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Filter query Gateway berdasarkan No. WhatsApp, No. Invoice (receipt_code), atau Order ID.
+     * Mendukung awalan '#', huruf besar/kecil, format INV-... maupun INV/..., serta 08... ↔ 628...
+     */
+    private function applyIdentifierFilter($query, string $rawIdentifier): void
+    {
+        $cleaned = ltrim(trim($rawIdentifier), '#');
+        $invoiceVariants = array_values(array_unique(array_filter([
+            mb_strtolower($cleaned),
+            mb_strtolower(str_replace('/', '-', $cleaned)),
+            mb_strtolower(str_replace('-', '/', $cleaned)),
+        ])));
+
+        $digits = preg_replace('/\D/', '', $cleaned);
+        $phoneVariants = array_filter([$cleaned]);
+        if ($digits !== '') {
+            $phoneVariants[] = $digits;
+            if (str_starts_with($digits, '62')) {
+                $phoneVariants[] = '0' . substr($digits, 2);
+            } elseif (str_starts_with($digits, '0')) {
+                $phoneVariants[] = '62' . substr($digits, 1);
+            }
+        }
+        $phoneVariants = array_values(array_unique($phoneVariants));
+
+        $query->where(function ($q) use ($phoneVariants, $invoiceVariants) {
+            if (!empty($phoneVariants)) {
+                $q->whereIn('phone_number', $phoneVariants);
+            }
+            foreach ($invoiceVariants as $inv) {
+                $q->orWhereRaw('LOWER(receipt_code) = ?', [$inv])
+                  ->orWhereRaw('LOWER(order_id) = ?', [$inv]);
+            }
+        });
+    }
+
     private function generateAllSlots(): array
     {
         $slots = [];
@@ -465,10 +501,12 @@ class RescheduleRequestController extends Controller
         $packetName  = $transaksi->packet->name ?? '-';
         $total       = number_format($transaksi->total_price, 0, ',', '.');
 
+        $invoiceCode = $transaksi->receipt_code ?: $transaksi->order_id;
+
         $lines = [
             "Halo Admin Yunas Studio, saya mengajukan reschedule booking:",
             "",
-            "Order ID: {$transaksi->order_id}",
+            "No. Invoice: {$invoiceCode}",
             "Nama: {$transaksi->customer_name}",
             "No. WhatsApp: {$transaksi->phone_number}",
             "Produk: {$productName}",

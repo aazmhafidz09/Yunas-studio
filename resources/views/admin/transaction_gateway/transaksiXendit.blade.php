@@ -265,6 +265,14 @@
                                                 <br>
                                                 <small class="text-muted">{{ $transaksi->packet->name }}</small>
                                             @endif
+                                            @php $pendingAddCount = $transaksi->additionalRequests->where('status', 'pending')->count(); @endphp
+                                            @if($pendingAddCount > 0)
+                                                <div class="mt-1">
+                                                    <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#detailModal{{ $transaksi->transaction_id }}" class="badge bg-warning text-dark text-decoration-none">
+                                                        <i class="uil-clock me-1"></i>{{ $pendingAddCount }} Tambahan Pending
+                                                    </a>
+                                                </div>
+                                            @endif
                                         </td>
                                         <td class="fw-bold"><a href="javascript:void(0);" class="clickable-price" data-bs-toggle="modal" data-bs-target="#detailModal{{ $transaksi->transaction_id }}">Rp {{ number_format($transaksi->total_price, 0, ',', '.') }}</a></td>
                                         <td>{{ $transaksi->created_at->format('d M Y, H:i') }}</td>
@@ -435,6 +443,40 @@
                                                         <td class="text-end">Rp {{ number_format($additional->pivot->price * $additional->pivot->quantity, 0, ',', '.') }}</td>
                                                     </tr>
                                                 @endforeach 
+                                            @endif
+                                            @if($transaksi->additionalRequests->isNotEmpty())
+                                                <tr><td colspan="5" class="pt-3 pb-0"><strong class="text-muted small">Pengajuan Tambahan Booking (Perlu Approval):</strong></td></tr>
+                                                @foreach($transaksi->additionalRequests as $addReq)
+                                                    <tr>
+                                                        <td><i class="mdi mdi-circle-small text-muted"></i></td>
+                                                        <td>
+                                                            <h5 class="font-size-14 mb-0">{{ $addReq->additional?->name ?? 'Item Tambahan' }}</h5>
+                                                            @if($addReq->status === 'pending')
+                                                                <span class="badge bg-warning text-dark font-size-11">Menunggu Approval</span>
+                                                                <div class="mt-1 d-flex gap-1">
+                                                                    <form method="POST" action="{{ route('booking-additionals.approve', $addReq->id) }}" class="d-inline" onsubmit="return confirm('Setujui tambahan ini? Biaya akan ditambahkan ke total tagihan.');">
+                                                                        @csrf
+                                                                        <button type="submit" class="btn btn-xs btn-success py-0 px-2 font-size-11">Approve</button>
+                                                                    </form>
+                                                                    <form method="POST" action="{{ route('booking-additionals.reject', $addReq->id) }}" class="d-inline" onsubmit="return confirm('Tolak tambahan ini?');">
+                                                                        @csrf
+                                                                        <button type="submit" class="btn btn-xs btn-danger py-0 px-2 font-size-11">Reject</button>
+                                                                    </form>
+                                                                </div>
+                                                            @elseif($addReq->status === 'approved')
+                                                                <span class="badge bg-success font-size-11">Disetujui</span>
+                                                            @else
+                                                                <span class="badge bg-danger font-size-11">Ditolak</span>
+                                                                @if($addReq->admin_note)
+                                                                    <small class="text-danger d-block">{{ $addReq->admin_note }}</small>
+                                                                @endif
+                                                            @endif
+                                                        </td>
+                                                        <td class="text-end">Rp {{ number_format($addReq->price, 0, ',', '.') }}</td>
+                                                        <td class="text-center">{{ $addReq->quantity }}</td>
+                                                        <td class="text-end">Rp {{ number_format($addReq->subtotal, 0, ',', '.') }}</td>
+                                                    </tr>
+                                                @endforeach
                                             @endif
                                         </tbody>
                                     </table>

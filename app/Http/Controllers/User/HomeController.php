@@ -52,10 +52,15 @@ class HomeController extends Controller
         // Hapus ->where('is_active', 1) dari Product
         $products = $this->productsWithPackets();
 
+        $all_additionals = Additional::where('price', '>', 0)
+            ->orderBy('name')
+            ->get();
+
         return view('userPage.home', compact(
             'packets',
             'products',
-            'product'
+            'product',
+            'all_additionals'
         ));
     }
 

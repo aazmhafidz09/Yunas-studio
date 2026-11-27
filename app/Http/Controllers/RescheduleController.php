@@ -12,7 +12,7 @@ class RescheduleController extends Controller
 {
     public function index()
     {
-        $requests = RescheduleRequest::with('transaction')
+        $requests = RescheduleRequest::with(['transaction', 'gatewayTransaction'])
             ->where('status', 'pending')
             ->paginate(10);
 
@@ -21,7 +21,7 @@ class RescheduleController extends Controller
 
     public function approve($id)
     {
-        $rescheduleRequest = RescheduleRequest::with('transaction')->findOrFail($id);
+        $rescheduleRequest = RescheduleRequest::with(['transaction', 'gatewayTransaction'])->findOrFail($id);
 
         // Cegah approve ganda kalau request sudah diproses sebelumnya
         if ($rescheduleRequest->status !== 'pending') {
@@ -31,18 +31,31 @@ class RescheduleController extends Controller
         DB::transaction(function () use ($rescheduleRequest) {
             // ── Update status request ──
             $rescheduleRequest->status = 'approved';
+            $rescheduleRequest->approved_by = auth()->id();
+            $rescheduleRequest->approved_at = now();
             $rescheduleRequest->save();
 
-            // ── Update jadwal booking asli ke jadwal baru ──
-            $transaksi = $rescheduleRequest->transaction;
-            if ($transaksi) {
-                $transaksi->session_date = $rescheduleRequest->new_schedule_date;
-                $transaksi->session_time = \Carbon\Carbon::parse($rescheduleRequest->new_schedule_time)->format('H:i');
-                $transaksi->save();
+            $newTime = \Carbon\Carbon::parse($rescheduleRequest->new_schedule_time)->format('H:i');
+
+            // ── Update jadwal booking di transaksi_gateway maupun transaksi ──
+            if ($rescheduleRequest->gatewayTransaction) {
+                $rescheduleRequest->gatewayTransaction->session_date = $rescheduleRequest->new_schedule_date;
+                $rescheduleRequest->gatewayTransaction->session_time = $newTime;
+                $rescheduleRequest->gatewayTransaction->save();
+            }
+            if ($rescheduleRequest->transaction) {
+                $rescheduleRequest->transaction->session_date = $rescheduleRequest->new_schedule_date;
+                $rescheduleRequest->transaction->session_time = $newTime;
+                $rescheduleRequest->transaction->save();
             }
         });
 
-        Log::info("Reschedule request #{$rescheduleRequest->id} disetujui — jadwal transaksi {$rescheduleRequest->transaction->order_id} diperbarui.");
+        $refCode = $rescheduleRequest->gatewayTransaction?->receipt_code
+            ?? $rescheduleRequest->gatewayTransaction?->order_id
+            ?? $rescheduleRequest->transaction?->order_id
+            ?? $rescheduleRequest->transaction_id;
+
+        Log::info("Reschedule request #{$rescheduleRequest->id} disetujui — jadwal transaksi {$refCode} diperbarui.");
 
         return redirect()->back()->with('success', 'Reschedule request approved successfully.');
     }

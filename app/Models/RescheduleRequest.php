@@ -21,14 +21,23 @@ class RescheduleRequest extends Model
         'approved_at',
         'approved_by'
     ];
-  public function transaction()
-{
-    return $this->belongsTo(
-        Transaksi::class,
-        'transaction_id',
-        'transaction_id'
-    );
-}
+    public function transaction()
+    {
+        return $this->belongsTo(
+            Transaksi::class,
+            'transaction_id',
+            'transaction_id'
+        );
+    }
+
+    public function gatewayTransaction()
+    {
+        return $this->belongsTo(
+            Gateway::class,
+            'transaction_id',
+            'transaction_id'
+        );
+    }
     function approvedBy()
     {
         return $this->belongsTo(User::class, 'approved_by', 'id');

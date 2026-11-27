@@ -732,7 +732,9 @@
                             <div class="p-4">
                                 <div class="row"><div class="col-md-6"><h5 class="font-size-16">Ditagihkan Kepada:</h5><p class="mb-1">{{ $transaksi->customer_name }}</p>@if($transaksi->phone_number)<p class="mb-1 text-muted">{{ $transaksi->phone_number }}</p>@endif @if($transaksi->user)<p class="mb-1 text-muted"><i class="mdi mdi-account-circle-outline me-1"></i> Akun User: {{ $transaksi->user->name }}</p>@endif</div><div class="col-md-6 text-md-end"><h5 class="font-size-16">Rincian Invoice:</h5><p class="mb-1"><strong>No. Invoice:</strong> {{ $transaksi->receipt_code }}</p><p class="mb-1"><strong>Tanggal Transaksi:</strong> {{ $transaksi->created_at->format('d M Y, H:i') }}</p><p class="mb-1"><strong>Status Pembayaran:</strong> {{ $paymentStatusConfig[$transaksi->status]['label'] ?? ucwords($transaksi->status) }}</p>
                                 <p class="mb-1"><strong>Tipe Pembayaran:</strong> {{ $transaksi->payment_type == 'none' ? '-' : $transaksi->payment_type }}</p>
-                                <p class="mb-1"><strong>Status Pengerjaan:</strong> {{ $transaksi->process_status }}</p></div></div>
+                                <p class="mb-1"><strong>Status Pengerjaan:</strong> {{ $transaksi->process_status }}</p>
+                                @php $modalEditEst = app(\App\Services\EditingQueueService::class)->getReceiptEstimation($transaksi, $editingQueueSchedule ?? null); @endphp
+                                <p class="mb-1"><strong>Estimasi Hasil Edit:</strong> {{ $modalEditEst['label'] }}</p></div></div>
                                 <div class="py-2 mt-3"><h3 class="font-size-15 fw-bold">Ringkasan Pesanan</h3></div>
                                 <div class="table-responsive">
                                     <table class="table table-nowrap">

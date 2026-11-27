@@ -118,6 +118,23 @@
                         <span>Reschedule</span>
                     </a>
                 </li>
+
+                @if(Auth::user()->isAdmin() || Auth::user()->isKasir())
+                    @php
+                        $pendingAdditionalApprovals = \Illuminate\Support\Facades\Schema::hasTable('booking_additional_requests')
+                            ? \App\Models\BookingAdditionalRequest::where('status', 'pending')->count()
+                            : 0;
+                    @endphp
+                    <li>
+                        <a href="{{ route('booking-additionals.index') }}" class="waves-effect {{ request()->routeIs('booking-additionals.*') ? 'active' : '' }}" title="Approval Tambahan Booking">
+                            <i class="uil-clipboard-notes"></i>
+                            @if($pendingAdditionalApprovals > 0)
+                                <span class="badge rounded-pill bg-warning float-end">{{ $pendingAdditionalApprovals }}</span>
+                            @endif
+                            <span>Approval Additional</span>
+                        </a>
+                    </li>
+                @endif
                 
                 <li>
                     <a href="{{url('gateway')}}" class="waves-effect">

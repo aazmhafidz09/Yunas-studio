@@ -129,10 +129,14 @@
                                 @endif
                             </td>
 
+                            @php
+                                $editingEstimate = $editingEstimate ?? app(\App\Services\EditingQueueService::class)->getReceiptEstimation($transaksi);
+                            @endphp
                             <td>
                                 <strong>Invoice #:</strong> {{ $transaksi->receipt_code }}<br />
                                 <strong>Created:</strong> {{ $transaksi->created_at->format('d F Y') }}<br />
-                                <strong>Status:</strong> {{ strtoupper($transaksi->status) }}
+                                <strong>Status:</strong> {{ strtoupper($transaksi->status) }}<br />
+                                <strong>Estimasi Hasil Edit:</strong> {{ $editingEstimate['label'] }}
                             </td>
                         </tr>
                     </table>
@@ -200,16 +204,44 @@
             </tr>
             @endforeach
 
+            @if(method_exists($transaksi, 'additionalRequests') && $transaksi->relationLoaded('additionalRequests') && $transaksi->additionalRequests->isNotEmpty())
+                @foreach($transaksi->additionalRequests as $addReq)
+                @php
+                    $reqStatusLabel = $addReq->status === 'approved'
+                        ? 'Disetujui'
+                        : ($addReq->status === 'rejected' ? 'Ditolak' : 'Menunggu Approval Admin');
+                @endphp
+                <tr class="item">
+                    <td>
+                        {{ $addReq->additional?->name ?? 'Tambahan' }}
+                        <span style="font-size: 0.8em; color: #888;">({{ $reqStatusLabel }})</span>
+                    </td>
+                    <td style="text-align: center">{{ $addReq->quantity }}</td>
+                    <td style="text-align: right">Rp {{ number_format($addReq->price, 0, ',', '.') }}</td>
+                    <td style="text-align: right">
+                        @if($addReq->status === 'approved')
+                            Rp {{ number_format($addReq->subtotal, 0, ',', '.') }}
+                        @else
+                            -
+                        @endif
+                    </td>
+                </tr>
+                @endforeach
+            @endif
+
             <tr class="total" style="border-top: 2px solid #eee;">
                 <td colspan="2"></td>
                 <td style="text-align: right; padding-top: 10px;">Subtotal:</td>
                 <td style="text-align: right; padding-top: 10px;">
                     @php
-                        $subtotalPacket = $transaksi->packet->price;
+                        $subtotalPacket = $transaksi->packet->price ?? 0;
                         $subtotalAdditional = $transaksi->additionals->sum(function($add) {
                             return $add->pivot->price * $add->pivot->quantity;
                         });
-                        $grandTotalBeforeDiscount = $subtotalPacket + $subtotalAdditional;
+                        $subtotalApprovedRequests = (method_exists($transaksi, 'additionalRequests') && $transaksi->relationLoaded('additionalRequests'))
+                            ? $transaksi->additionalRequests->where('status', 'approved')->sum(fn($r) => $r->subtotal)
+                            : 0;
+                        $grandTotalBeforeDiscount = $subtotalPacket + $subtotalAdditional + $subtotalApprovedRequests;
                     @endphp
                     Rp {{ number_format($grandTotalBeforeDiscount, 0, ',', '.') }}
                 </td>

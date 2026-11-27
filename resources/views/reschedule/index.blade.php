@@ -39,10 +39,11 @@
                             </thead>
                             <tbody>
                                 @forelse ($requests as $request)
+                                    @php $trxRef = $request->gatewayTransaction ?? $request->transaction; @endphp
                                     <tr>
                                         <td>{{ $request->id }}</td>
-                                        <td>{{ $request->transaction->customer_name ?? '-' }}</td>
-                                        <td>{{ $request->transaction->order_id ?? '-' }}</td>
+                                        <td>{{ $trxRef->customer_name ?? '-' }}</td>
+                                        <td>{{ $trxRef->receipt_code ?? $trxRef->order_id ?? '-' }}</td>
                                         <td>
                                             {{ $request->old_schedule_date }}
                                             {{ $request->old_schedule_time }}

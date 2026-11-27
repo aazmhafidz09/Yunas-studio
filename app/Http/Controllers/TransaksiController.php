@@ -9,7 +9,8 @@ use App\Models\User;
 use App\Models\Role;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
-use App\Models\Balance; 
+use App\Models\Balance;
+use App\Services\EditingQueueService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -230,11 +231,13 @@ class TransaksiController extends Controller
         
         $processStatuses = $this->processStatuses;
         $paymentStatuses = ['belum dibayar', 'dp', 'sudah dibayar'];
+        $editingQueueService = app(EditingQueueService::class);
+        $editingQueueSchedule = $editingQueueService->buildSchedule();
 
         if ($user->isUser()) {
              $userPacketIds = (clone $query)->distinct()->pluck('packet_id');
              $packetsForFilter = Packet::with('product')->whereIn('id', $userPacketIds)->orderBy('name')->get()->groupBy('product.name');
-             return view('user.transaction.transaksi', compact('transactions', 'packetsForFilter', 'paymentStatuses', 'processStatuses', 'perPageOptions'));
+             return view('user.transaction.transaksi', compact('transactions', 'packetsForFilter', 'paymentStatuses', 'processStatuses', 'perPageOptions', 'editingQueueSchedule'));
         }
 
         $packetsForFilter = Packet::with('product')->whereHas('product')->orderBy('name')->get()->groupBy('product.name');
@@ -248,7 +251,8 @@ class TransaksiController extends Controller
             'packetsForFilter', 'paymentStatuses', 'processStatuses',
             'filterLabel','todaySudahDibayar', 'countTodaySudahDibayar',
             'todayDp', 'countTodayDp',
-            'todayNetMinusDp'
+            'todayNetMinusDp',
+            'editingQueueSchedule'
         ));
     }
 
@@ -667,8 +671,10 @@ class TransaksiController extends Controller
             return back()->with('error', 'Only paid transactions can download invoices');
         }
         $transaksi->load('packet.product', 'packet.additionalDefaults.additional', 'packet.printOptions', 'additionals');
+        $editingEstimate = app(EditingQueueService::class)->getReceiptEstimation($transaksi);
         $data = [
             'transaksi' => $transaksi,
+            'editingEstimate' => $editingEstimate,
             'paymentStatusConfig' => ['belum dibayar' => 'Unpaid', 'dp' => 'Down Payment', 'sudah dibayar' => 'Paid'],
             'processStatusConfig' => ['Pelanggan Belum Foto' => 'Not Photographed', 'Pelanggan Pilih Foto' => 'Selecting Photos', 'Proses Edit' => 'Editing', 'Proses Cetak' => 'Printing', 'Selesai' => 'Completed'],
             'company' => ['name' => 'Yunas Studio', 'address' => 'Jalan Lingkar Selatan, Sukabumi', 'logo' => public_path('assets/images/yunas_dark.png')]
@@ -682,7 +688,11 @@ class TransaksiController extends Controller
     {
         $this->authorizeAdmin();
         $transaksi->load('packet.product', 'packet.additionalDefaults.additional', 'packet.printOptions', 'additionals');
-        return view('invoices.print-template', ['transaksi' => $transaksi]);
+        $editingEstimate = app(EditingQueueService::class)->getReceiptEstimation($transaksi);
+        return view('invoices.print-template', [
+            'transaksi' => $transaksi,
+            'editingEstimate' => $editingEstimate,
+        ]);
     }
 
     // Placeholder methods

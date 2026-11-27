@@ -175,6 +175,9 @@
         </div>
     </div>
 
+    @php
+        $editingEstimate = $editingEstimate ?? app(\App\Services\EditingQueueService::class)->getReceiptEstimation($transaksi);
+    @endphp
     <div class="info-grid">
         <div class="info-col">
             <div class="info-row">
@@ -183,6 +186,9 @@
             <div class="info-row">
                 {{-- UPGRADE: Dynamic Payment Type --}}
                 <span class="label">Metode</span><span class="sep">:</span><span class="val">{{ $transaksi->payment_type == 'none' ? '-' : $transaksi->payment_type }}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Est. Edit</span><span class="sep">:</span><span class="val">{{ $editingEstimate['label'] }}</span>
             </div>
         </div>
         <div class="info-col">

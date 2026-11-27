@@ -33,13 +33,14 @@ private $processStatuses = [
     
    public function index(Request $request)
     {
-        // Eager load relationships termasuk detail paket dan additional
+        // Eager load relationships termasuk detail paket, additional, dan pengajuan additional
         $query = Gateway::with([
             'packet.product', 
             'packet.printOptions', 
             'packet.additionalDefaults.additional', 
             'user', 
-            'additionals'
+            'additionals',
+            'additionalRequests.additional',
         ]);
         
         $user = auth()->user();

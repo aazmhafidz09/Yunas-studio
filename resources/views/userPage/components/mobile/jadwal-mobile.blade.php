@@ -67,19 +67,19 @@
                     </div>
                     <div class="sch-card-body">
                         <p class="sch-panel-desc">
-                            Masukkan nomor WhatsApp atau Order ID untuk menemukan booking Anda.
+                            Masukkan nomor WhatsApp atau nomor Invoice untuk menemukan booking Anda.
                         </p>
 
                         {{-- Step R1: Cari Booking --}}
                         <div id="rs-step-1">
                             <div class="sch-input-wrap mb-3">
                                 <label class="sch-label">
-                                    No. WhatsApp / Order ID
+                                    No. WhatsApp / No. Invoice
                                 </label>
                                 <input type="text" class="sch-input" id="rs-identifier"
-                                       placeholder="08xxxxxxxxxx atau INV/20250101/123">
+                                       placeholder="08xxxxxxxxxx atau INV-20261127-123">
                                 <div class="sch-error d-none" id="rs-err-identifier">
-                                    Masukkan nomor HP atau Order ID yang valid.
+                                    Masukkan nomor WhatsApp atau nomor Invoice yang valid.
                                 </div>
                             </div>
                             <button class="sch-btn-primary w-100" onclick="rsCariBooking()">

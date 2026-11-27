@@ -163,9 +163,10 @@ class EditingQueueService
         foreach ($queuedTransactions as $index => $trx) {
             $advanceToAvailableSlot();
 
-            $queueNumber = $index + 1;
+            $overallQueueNumber = $index + 1;
             $cursorUsed++;
             $daySlot = $cursorUsed;
+            $queueNumber = $daySlot; // Resets to 1 on each new day when daily capacity rolls over
             $dateStr = $cursorDate->toDateString();
             $dailyQueuedCounts[$dateStr] = ($dailyQueuedCounts[$dateStr] ?? 0) + 1;
 
@@ -173,6 +174,7 @@ class EditingQueueService
                 'transaction_id' => $trx->transaction_id,
                 'transaksi' => $trx,
                 'queue_number' => $queueNumber,
+                'overall_queue_number' => $overallQueueNumber,
                 'estimated_date' => $cursorDate->copy(),
                 'estimated_date_string' => $dateStr,
                 'estimated_date_label' => $this->formatDateLabel($cursorDate, $today),
@@ -191,8 +193,9 @@ class EditingQueueService
 
         // Compute the next available slot if a new transaction enters right now
         $advanceToAvailableSlot();
-        $nextQueueNumber = $queuedTransactions->count() + 1;
         $nextDaySlot = $cursorUsed + 1;
+        $nextQueueNumber = $nextDaySlot; // Resets to 1 when today's capacity is full and rolls over to next day
+        $nextOverallQueueNumber = $queuedTransactions->count() + 1;
         $nextEstimatedDate = $cursorDate->copy();
         $nextDayCapacity = $cursorCapacity;
 
@@ -237,6 +240,7 @@ class EditingQueueService
             'today_remaining' => $todayRemaining,
             'total_queued' => $queuedTransactions->count(),
             'next_queue_number' => $nextQueueNumber,
+            'next_overall_queue_number' => $nextOverallQueueNumber,
             'next_estimated_date' => $nextEstimatedDate,
             'next_estimated_date_label' => $this->formatDateLabel($nextEstimatedDate, $today),
             'next_day_slot' => $nextDaySlot,
@@ -255,6 +259,55 @@ class EditingQueueService
         $schedule = $this->buildSchedule($today);
 
         return $schedule['by_transaction_id'][$transaksi->transaction_id] ?? null;
+    }
+
+    /**
+     * Build a receipt-friendly editing completion estimation for any transaction (or gateway booking).
+     *
+     * @param  \App\Models\Transaksi|\App\Models\Gateway  $transaksi
+     * @return array{label: string, date_label: string, queue_label: string, is_completed: bool, is_queued: bool}
+     */
+    public function getReceiptEstimation($transaksi, ?array $schedule = null): array
+    {
+        $hasResultUrl = !empty(trim((string) ($transaksi->url_photos_result ?? '')));
+        $isCompleted = $hasResultUrl || in_array($transaksi->process_status ?? '', ['Proses Cetak', 'Selesai'], true);
+
+        if ($isCompleted) {
+            $completedAt = $transaksi->editing_completed_at ?? null;
+            $dateText = $completedAt ? $this->formatDateLabel(Carbon::parse($completedAt)) : '';
+
+            return [
+                'label' => $dateText ? "Selesai Diedit ({$dateText})" : 'Selesai Diedit',
+                'date_label' => $dateText ?: 'Selesai',
+                'queue_label' => 'Selesai',
+                'is_completed' => true,
+                'is_queued' => false,
+            ];
+        }
+
+        $schedule = $schedule ?? $this->buildSchedule();
+        $trxId = $transaksi->transaction_id ?? null;
+        $queuedInfo = ($trxId && isset($schedule['by_transaction_id'][$trxId]))
+            ? $schedule['by_transaction_id'][$trxId]
+            : null;
+
+        if ($queuedInfo) {
+            return [
+                'label' => "{$queuedInfo['estimated_date_label']} (Antrian ke-{$queuedInfo['queue_number']})",
+                'date_label' => $queuedInfo['estimated_date_label'],
+                'queue_label' => "Antrian ke-{$queuedInfo['queue_number']}",
+                'is_completed' => false,
+                'is_queued' => true,
+            ];
+        }
+
+        return [
+            'label' => "{$schedule['next_estimated_date_label']} (Est. Antrian ke-{$schedule['next_queue_number']})",
+            'date_label' => $schedule['next_estimated_date_label'],
+            'queue_label' => "Est. Antrian ke-{$schedule['next_queue_number']}",
+            'is_completed' => false,
+            'is_queued' => false,
+        ];
     }
 
     public function formatDateLabel(Carbon $date, ?Carbon $today = null): string

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\BookingAdditionalRequest;
 use App\Models\Gateway;
 use App\Models\Packet;
 use App\Models\Transaksi;
@@ -129,14 +130,17 @@ class BookingController extends Controller
         }
 
         // ── Validasi skema pembayaran ──────────────────────────────────
+        // Catatan: Tambahan ekstra (additional) memerlukan approval admin terlebih dahulu,
+        // sehingga tagihan awal hanya menghitung harga paket. Biaya additional baru ditambahkan
+        // ke total_price saat admin melakukan Approve.
         $paymentOption = $validated['payment_option'];
         $dpAmountInput = $paymentOption === 'dp' ? (float) $validated['dp_amount'] : null;
-        $grandTotal = (float) $packet->price + $additionalsTotal;
+        $grandTotal = (float) $packet->price;
 
         if ($paymentOption === 'dp' && $dpAmountInput > $grandTotal) {
             return response()->json([
-                'message' => 'Jumlah DP tidak boleh melebihi total harga (paket + tambahan).',
-                'errors' => ['dp_amount' => ['DP melebihi total harga.']],
+                'message' => 'Jumlah DP tidak boleh melebihi harga paket (item tambahan menunggu persetujuan admin).',
+                'errors' => ['dp_amount' => ['DP melebihi harga paket.']],
             ], 422);
         }
 
@@ -213,16 +217,18 @@ class BookingController extends Controller
             $transaksi->order_id = $receiptCode;
             $transaksi->save();
 
-            // ── Sync additional ke pivot, harga diambil dari DB ─────────
+            // ── Simpan pengajuan additional ke booking_additional_requests (status pending) ──
+            // Admin harus approve/reject terlebih dahulu sebelum biaya ditambahkan ke total transaksi.
             if (!empty($additionalsInput)) {
-                $syncData = [];
                 foreach ($additionalsInput as $id => $details) {
-                    $syncData[$id] = [
-                        'quantity' => $details['quantity'],
+                    BookingAdditionalRequest::create([
+                        'transaction_id' => $transaksi->transaction_id,
+                        'additional_id' => $id,
+                        'quantity' => (int) $details['quantity'],
                         'price' => $additionalModels[$id]->price,
-                    ];
+                        'status' => BookingAdditionalRequest::STATUS_PENDING,
+                    ]);
                 }
-                $transaksi->additionals()->sync($syncData);
             }
 
             DB::commit();
@@ -237,13 +243,17 @@ class BookingController extends Controller
 
         // Bayar di lokasi: booking sudah tersimpan, tidak perlu Xendit
         if ($paymentOption === 'onLocation') {
-    return response()->json([
-        'success'      => true,
-        'message'      => 'Booking berhasil dibuat. Pembayaran dilakukan di lokasi.',
-        'redirect_url' => route('payment.success', ['order_id' => $receiptCode]),
-        'order_id'     => $receiptCode,
-    ]);
-}
+            $msg = !empty($additionalsInput)
+                ? 'Booking berhasil dibuat. Pengajuan tambahan ekstra Anda sedang menunggu persetujuan admin.'
+                : 'Booking berhasil dibuat. Pembayaran dilakukan di lokasi.';
+            return response()->json([
+                'success'                 => true,
+                'message'                 => $msg,
+                'redirect_url'            => route('payment.success', ['order_id' => $receiptCode]),
+                'order_id'                => $receiptCode,
+                'has_pending_additionals' => !empty($additionalsInput),
+            ]);
+        }
         // ── Bagian Xendit dipisah DI LUAR DB transaction ──────────────
         // (transaksi sudah ter-commit di atas; kalau Xendit gagal di sini,
         // transaksi tetap tersimpan dengan status 'belum dibayar' — user
@@ -265,18 +275,6 @@ class BookingController extends Controller
                     'category' => 'Service',
                 ],
             ];
-
-            if ($paymentOption === 'full') {
-                foreach ($additionalsInput as $id => $details) {
-                    $model = $additionalModels[$id];
-                    $itemDetails[] = [
-                        'name' => $model->name,
-                        'quantity' => (int) $details['quantity'],
-                        'price' => (int) $model->price,
-                        'category' => 'Additional',
-                    ];
-                }
-            }
 
             $invoiceApi = new InvoiceApi();
             $createInvoiceRequest = new \Xendit\Invoice\CreateInvoiceRequest([
@@ -385,13 +383,15 @@ class BookingController extends Controller
             'packet.product',
             'packet.printOptions',
             'additionals',
+            'additionalRequests.additional',
         ])
             ->where('order_id', $order_id)
             ->firstOrFail();
 
         $transaksi = $booking;
+        $editingEstimate = app(\App\Services\EditingQueueService::class)->getReceiptEstimation($transaksi);
 
-        $pdf = Pdf::loadView('invoices.template', compact('transaksi'))
+        $pdf = Pdf::loadView('invoices.template', compact('transaksi', 'editingEstimate'))
             ->setPaper('a4', 'portrait');
 
         $fileName = str_replace('/', '-', $booking->order_id);

@@ -206,7 +206,7 @@ class PaymentController extends Controller
         abort(404, 'Order ID not found.');
     }
 
-    $transaksi = Gateway::with(['packet.product'])
+    $transaksi = Gateway::with(['packet.product', 'additionalRequests.additional'])
         ->where('order_id', $orderId)
         ->first();
 
@@ -253,6 +253,16 @@ private function buildWhatsappMessage(Gateway $transaksi): string
         $sisa = $transaksi->total_price - $transaksi->dp_amount;
         $lines[] = "DP Dibayar: Rp" . number_format($transaksi->dp_amount, 0, ',', '.');
         $lines[] = "Sisa Pembayaran: Rp" . number_format($sisa, 0, ',', '.');
+    }
+
+    if ($transaksi->additionalRequests && $transaksi->additionalRequests->isNotEmpty()) {
+        $lines[] = "";
+        $lines[] = "Pengajuan Tambahan Ekstra (Menunggu Approval Admin):";
+        foreach ($transaksi->additionalRequests as $req) {
+            $addName = $req->additional?->name ?? 'Tambahan';
+            $addSub = number_format($req->subtotal, 0, ',', '.');
+            $lines[] = "- {$req->quantity}x {$addName} (Rp{$addSub})";
+        }
     }
 
     if ($transaksi->customer_note) {

@@ -27,6 +27,7 @@ use App\Http\Controllers\User\AccountController;
 use App\Http\Controllers\PhotoSelectionController;
 use App\Http\Controllers\EditingCapacityController;
 use App\Http\Controllers\PromoController;
+use App\Http\Controllers\BookingAdditionalApprovalController;
  
 
 
@@ -169,6 +170,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/reschedule', [RescheduleController::class, 'index'])->name('view-reschedule');
         Route::post('/reschedule/{id}/approve', [RescheduleController::class, 'approve'])->name('reschedule.approve');
         Route::post('/reschedule/{id}/reject', [RescheduleController::class, 'reject'])->name('reschedule.reject');
+
+    // Admin: approve / reject pengajuan tambahan ekstra (additional) pada booking
+        Route::get('/booking-additionals', [BookingAdditionalApprovalController::class, 'index'])->name('booking-additionals.index');
+        Route::post('/booking-additionals/{bookingAdditionalRequest}/approve', [BookingAdditionalApprovalController::class, 'approve'])->name('booking-additionals.approve');
+        Route::post('/booking-additionals/{bookingAdditionalRequest}/reject', [BookingAdditionalApprovalController::class, 'reject'])->name('booking-additionals.reject');
 });
 
 

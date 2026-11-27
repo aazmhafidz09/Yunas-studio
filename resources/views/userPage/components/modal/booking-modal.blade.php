@@ -244,12 +244,10 @@ Perubahan dari versi sebelumnya:
                         <div class="col-12">
                             <label class="bm-label">Tambahan Ekstra (Opsional)</label>
 
-                            <div id="b-extra-additionals-list" class="mb-2"></div>
-
                             <div class="bm-input-group" style="gap:8px;">
                                 <select id="add_additional_select" class="bm-select">
                                     <option value="">Pilih tambahan...</option>
-                                    @foreach($all_additionals as $additional)
+                                    @foreach($all_additionals ?? [] as $additional)
                                         <option value="{{ $additional->id }}" data-name="{{ $additional->name }}"
                                             data-price="{{ $additional->price }}">
                                             {{ $additional->name }} (Rp
@@ -262,6 +260,11 @@ Perubahan dari versi sebelumnya:
                                     <i class="mdi mdi-plus"></i> Tambah
                                 </button>
                             </div>
+                            <div id="b-extra-additionals-list" class="mt-2"></div>
+                            <small class="text-muted d-block mt-1">
+                                <i class="mdi mdi-shield-check-outline text-warning me-1"></i>
+                                Pengajuan tambahan ekstra memerlukan persetujuan (approve/reject) admin terlebih dahulu sebelum ditambahkan ke total tagihan.
+                            </small>
                         </div>
                         {{-- /Tambahan Ekstra --}}
 
@@ -1336,6 +1339,14 @@ JAVASCRIPT — IIFE UTAMA
 
         // ── Step navigation ───────────────────────────────────────────────
         window.bookingNextStep = function (step) {
+            // Jika user sudah memilih item di dropdown tambahan namun belum menekan tombol Tambah,
+            // otomatis masukkan ke daftar tambahan sebelum pindah ke Step 3.
+            if (step === 3 && typeof window.bookingAddAdditional === 'function') {
+                const addSel = document.getElementById('add_additional_select');
+                if (addSel && addSel.value) {
+                    window.bookingAddAdditional();
+                }
+            }
             if (step > 1 && !validateStep(step - 1)) return;
 
             [1, 2, 3].forEach(i => {
@@ -1451,6 +1462,7 @@ JAVASCRIPT — IIFE UTAMA
 
         function renderAdditionalsList() {
             const list = document.getElementById('b-extra-additionals-list');
+            if (!list) return;
             list.innerHTML = '';
 
             Object.values(_selectedAdditionals).forEach(item => {
@@ -1458,16 +1470,16 @@ JAVASCRIPT — IIFE UTAMA
                 div.className = 'b-extra-item';
                 div.dataset.id = item.id;
                 div.innerHTML = `
-                    <div>
+                    <div style="flex:1; min-width:0;">
                         <p class="b-extra-item-name">${item.name}</p>
-                        <p class="b-extra-item-price">${formatRp(item.price)} / item</p>
+                        <p class="b-extra-item-price">${formatRp(item.price)} / item &middot; Subtotal ${formatRp(item.price * item.qty)} <span class="badge bg-warning text-dark ms-1" style="font-size:10px;">Menunggu Approval</span></p>
                     </div>
                     <div class="b-extra-item-qty">
                         <button type="button" class="b-qty-btn" data-action="dec">−</button>
                         <span class="b-qty-val">${item.qty}</span>
                         <button type="button" class="b-qty-btn" data-action="inc">+</button>
                     </div>
-                    <button type="button" class="b-extra-remove" data-action="remove">
+                    <button type="button" class="b-extra-remove" data-action="remove" title="Hapus">
                         <i class="mdi mdi-close"></i>
                     </button>
                 `;
@@ -1479,16 +1491,17 @@ JAVASCRIPT — IIFE UTAMA
 
         window.bookingAddAdditional = function () {
             const sel = document.getElementById('add_additional_select');
+            if (!sel) return;
             const opt = sel.options[sel.selectedIndex];
             if (!opt || !opt.value) return;
 
-            const id = opt.value;
+            const id = String(opt.value);
             if (_selectedAdditionals[id]) {
                 _selectedAdditionals[id].qty += 1;
             } else {
                 _selectedAdditionals[id] = {
                     id,
-                    name: opt.dataset.name,
+                    name: opt.dataset.name || opt.textContent.trim(),
                     price: parseFloat(opt.dataset.price) || 0,
                     qty: 1,
                 };
@@ -1497,9 +1510,15 @@ JAVASCRIPT — IIFE UTAMA
             renderAdditionalsList();
         };
 
-        document.getElementById('add-additional-btn').addEventListener('click', bookingAddAdditional);
+        document.getElementById('add_additional_select')?.addEventListener('change', function () {
+            if (this.value) {
+                window.bookingAddAdditional();
+            }
+        });
 
-        document.getElementById('b-extra-additionals-list').addEventListener('click', function (e) {
+        document.getElementById('add-additional-btn')?.addEventListener('click', window.bookingAddAdditional);
+
+        document.getElementById('b-extra-additionals-list')?.addEventListener('click', function (e) {
             const btn = e.target.closest('button');
             if (!btn) return;
             const row = btn.closest('.b-extra-item');
@@ -1517,11 +1536,11 @@ JAVASCRIPT — IIFE UTAMA
         });
 
         // ── Helper pembayaran (Full / DP) ─────────────────────────────────
-        // getTotalPrice() = harga paket + total semua tambahan ekstra
+        // getTotalPrice() = harga paket saja (tambahan ekstra menunggu persetujuan admin)
         function getTotalPrice() {
             const packetSel = document.getElementById('b_packet_id');
             const packetPrice = parseFloat(packetSel.options[packetSel.selectedIndex]?.dataset.price) || 0;
-            return packetPrice + getAdditionalsTotal();
+            return packetPrice;
         }
 
         function getPaymentType() {
@@ -1556,7 +1575,7 @@ JAVASCRIPT — IIFE UTAMA
             summary.classList.remove('d-none');
 
             const extrasTotal = getAdditionalsTotal();
-            const extrasNote = extrasTotal > 0 ? `Termasuk tambahan ${formatRp(extrasTotal)}` : '';
+            const extrasNote = extrasTotal > 0 ? `+ Estimasi tambahan ${formatRp(extrasTotal)} (menunggu persetujuan admin)` : '';
 
             if (getPaymentType() === 'dp') {
                 const dp = getDpAmount();
@@ -1681,7 +1700,7 @@ JAVASCRIPT — IIFE UTAMA
             if (additionalsList.length > 0) {
                 document.getElementById('confirm_additionals').innerHTML = additionalsList
                     .map(a => `${a.qty}x ${a.name} (${formatRp(a.price * a.qty)})`)
-                    .join('<br>');
+                    .join('<br>') + '<br><small class="text-warning fw-semibold">⏳ Menunggu persetujuan admin</small>';
                 additionalsRow.classList.remove('d-none');
             } else {
                 additionalsRow.classList.add('d-none');
