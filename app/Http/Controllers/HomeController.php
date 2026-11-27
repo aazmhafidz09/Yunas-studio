@@ -50,14 +50,18 @@ class HomeController extends Controller
 
         // --- 1. Basic Stats Cards ---
         
+        // Total Pemasukan — rumus SAMA dengan kartu "Total Pendapatan" di
+        // halaman Transactions: transaksi Lunas (total_price) + DP (dp_amount),
+        // berdasarkan tanggal transaksi dibuat (created_at).
+
         // Total Income (Accumulated - All Time)
-        $totalIncome = Expense::where('type', 'income')->sum('amount');
+        $totalIncome = $this->transactionRevenue(Transaksi::query());
 
         // Total Income (Monthly - Current Month)
-        $totalIncomeMonthly = Expense::where('type', 'income')
-            ->whereYear('expense_date', $currentDate->year)
-            ->whereMonth('expense_date', $currentDate->month)
-            ->sum('amount');
+        $totalIncomeMonthly = $this->transactionRevenue(
+            Transaksi::whereDate('created_at', '>=', $currentDate->copy()->startOfMonth()->toDateString())
+                ->whereDate('created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString())
+        );
         
         // Total Expense (Accumulated)
         $totalExpenses = Expense::where('type', 'expense')->sum('amount');
@@ -127,28 +131,27 @@ class HomeController extends Controller
             for ($i = 6; $i >= 0; $i--) {
                 $day = Carbon::today()->subDays($i);
                 $labels[] = $day->format('d M');
-                $incomeAmount = Expense::where('type', 'income')
-                    ->whereDate('expense_date', $day)
-                    ->sum('amount');
+                $incomeAmount = $this->transactionRevenue(
+                    Transaksi::whereDate('created_at', $day)
+                );
                 $income[] = $incomeAmount;
             }
         } elseif ($period == 'yearly') {
             for ($i = 4; $i >= 0; $i--) {
                 $year = Carbon::now()->subYears($i)->year;
                 $labels[] = (string)$year;
-                $incomeAmount = Expense::where('type', 'income')
-                    ->whereYear('expense_date', $year)
-                    ->sum('amount');
+                $incomeAmount = $this->transactionRevenue(
+                    Transaksi::whereYear('created_at', $year)
+                );
                 $income[] = $incomeAmount;
             }
         } else {
             for ($i = 1; $i <= 12; $i++) {
                 $month = Carbon::create($currentYear, $i, 1);
                 $labels[] = $month->format('M');
-                $incomeAmount = Expense::where('type', 'income')
-                    ->whereYear('expense_date', $currentYear)
-                    ->whereMonth('expense_date', $i)
-                    ->sum('amount');
+                $incomeAmount = $this->transactionRevenue(
+                    Transaksi::whereYear('created_at', $currentYear)->whereMonth('created_at', $i)
+                );
                 $income[] = $incomeAmount;
             }
         }
@@ -159,7 +162,22 @@ class HomeController extends Controller
         ];
     }
 
-    public function lang($locale)
+    /**
+     * Pendapatan dari transaksi = Lunas (total_price) + DP (dp_amount).
+     * Disamakan dengan TransaksiController@index ($totalProfit).
+     */
+    private function transactionRevenue($query): float
+    {
+        return (float) (clone $query)
+            ->selectRaw("
+                COALESCE(SUM(CASE WHEN status = 'sudah dibayar' THEN total_price ELSE 0 END), 0)
+              + COALESCE(SUM(CASE WHEN status = 'dp' THEN COALESCE(dp_amount, 0) ELSE 0 END), 0)
+                AS revenue
+            ")
+            ->value('revenue');
+    }
+
+        public function lang($locale)
     {
         if ($locale) {
             App::setLocale($locale);
