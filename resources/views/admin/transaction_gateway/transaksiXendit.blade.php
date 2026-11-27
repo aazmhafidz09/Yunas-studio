@@ -137,7 +137,39 @@
         <div class="col-lg-12">
             <div class="card">
                 <div class="card-body">
-                
+                    {{-- Search bar (live search via AJAX) --}}
+                    <form method="GET" action="{{ route('gateway.index') }}" class="mb-3" id="gatewaySearchForm" role="search">
+                        @foreach (request()->except(['search', 'page', 'start_date', 'end_date']) as $key => $value)
+                            @if (!is_array($value))
+                                <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                            @endif
+                        @endforeach
+                        <div class="row g-2 align-items-center">
+                            <div class="col-lg-6 col-md-8">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white">
+                                        <i class="bx bx-search" id="gwSearchIcon"></i>
+                                        <span class="spinner-border spinner-border-sm text-primary d-none" id="gwSearchSpinner" role="status"></span>
+                                    </span>
+                                    <input type="search" name="search" class="form-control" id="gwSearchInput"
+                                           value="{{ request('search') }}"
+                                           placeholder="Cari nama pelanggan, no. WhatsApp, Order ID, atau kode invoice..."
+                                           autocomplete="off">
+                                    <button type="button" class="btn btn-light {{ request()->filled('search') ? '' : 'd-none' }}" id="gwSearchClear" title="Hapus pencarian">
+                                        <i class="bx bx-x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div id="gw-results">
+                    @if (request()->filled('search'))
+                        <p class="text-muted small mb-3">
+                            Menampilkan <strong>{{ $transactions->total() }}</strong> hasil untuk
+                            "<strong>{{ request('search') }}</strong>" (semua waktu).
+                        </p>
+                    @endif
 
                     <div class="table-responsive">
                         <table class="table table-centered table-nowrap mb-0">
@@ -316,7 +348,7 @@
                                 <p class="mb-sm-0">Menampilkan {{ $transactions->firstItem() }} sampai {{ $transactions->lastItem() }} dari {{ $transactions->total() }} data</p>
                             </div>
                             <div class="ms-3">
-                                <form method="GET" action="{{ route('transaksi.index') }}" class="d-flex align-items-center">
+                                <form method="GET" action="{{ route('gateway.index') }}" class="d-flex align-items-center">
                                     {{-- Preserve all current filters including hide_completed --}}
                                     @foreach (request()->except(['per_page', 'page']) as $key => $value)
                                         <input type="hidden" name="{{ $key }}" value="{{ is_array($value) ? http_build_query($value) : $value }}">
@@ -336,12 +368,14 @@
                             </div>
                         </div>
                     </div>
+                    </div>{{-- /#gw-results --}}
                 </div>
             </div>
         </div>
     </div>
 
     {{-- Modal Details, Delete Confirmation, Payment Action Modal --}}
+    <div id="gw-row-modals">
     @foreach($transactions as $transaksi)
         <div id="detailModal{{ $transaksi->transaction_id }}" class="modal fade invoice-modal" tabindex="-1">
             <div class="modal-dialog modal-dialog-centered">
@@ -438,6 +472,7 @@
             </div>
         </div>
     @endforeach
+    </div>{{-- /#gw-row-modals --}}
 
     <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -706,8 +741,11 @@ document.addEventListener('DOMContentLoaded', function () {
             return data;
         }
 
-        document.querySelectorAll('.btn-gw-edit').forEach(btn => {
-            btn.addEventListener('click', () => {
+        // Event delegation: tetap jalan setelah tabel diganti oleh live search
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-gw-edit');
+            if (!btn) return;
+            {
                 editUrl = btn.dataset.url;
                 editErr.classList.add('d-none');
                 FIELDS.forEach(f => {
@@ -715,7 +753,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (input) input.value = btn.dataset[f] ?? '';
                 });
                 editModal.show();
-            });
+            }
         });
 
         editForm.addEventListener('submit', async (e) => {
@@ -736,14 +774,16 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        document.querySelectorAll('.btn-gw-delete').forEach(btn => {
-            btn.addEventListener('click', () => {
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-gw-delete');
+            if (!btn) return;
+            {
                 deleteUrl = btn.dataset.url;
                 delErr.classList.add('d-none');
                 document.getElementById('gwDeleteName').textContent = btn.dataset.name || '';
                 document.getElementById('gwDeleteOrder').textContent = btn.dataset.order ? '(' + btn.dataset.order + ')' : '';
                 deleteModal.show();
-            });
+            }
         });
 
         delBtn.addEventListener('click', async () => {
@@ -759,10 +799,92 @@ document.addEventListener('DOMContentLoaded', function () {
     })();
 
     // =================================================
+    // LIVE SEARCH (AJAX) — ambil halaman yang sama dengan ?search=...,
+    // lalu tukar isi tabel, pagination & modal detail per baris.
+    // =================================================
+    (function () {
+        const form    = document.getElementById('gatewaySearchForm');
+        const input   = document.getElementById('gwSearchInput');
+        const clear   = document.getElementById('gwSearchClear');
+        const icon    = document.getElementById('gwSearchIcon');
+        const spinner = document.getElementById('gwSearchSpinner');
+        if (!form || !input) return;
+
+        let timer = null, controller = null;
+
+        const setLoading = (on) => {
+            icon.classList.toggle('d-none', on);
+            spinner.classList.toggle('d-none', !on);
+        };
+
+        function buildUrl() {
+            const params = new URLSearchParams(new FormData(form));
+            if (!params.get('search')) params.delete('search');
+            const qs = params.toString();
+            return form.action + (qs ? '?' + qs : '');
+        }
+
+        async function load(url) {
+            if (controller) controller.abort();
+            controller = new AbortController();
+            setLoading(true);
+            try {
+                const res = await fetch(url, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' },
+                    signal: controller.signal,
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+
+                ['gw-results', 'gw-row-modals'].forEach(id => {
+                    const fresh = doc.getElementById(id);
+                    const cur = document.getElementById(id);
+                    if (fresh && cur) cur.replaceWith(fresh);
+                });
+                history.replaceState(null, '', url);
+            } catch (err) {
+                if (err.name !== 'AbortError') console.error('Live search gagal:', err);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        input.addEventListener('input', () => {
+            clear.classList.toggle('d-none', input.value === '');
+            clearTimeout(timer);
+            timer = setTimeout(() => load(buildUrl()), 350);
+        });
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            clearTimeout(timer);
+            load(buildUrl());
+        });
+
+        clear.addEventListener('click', () => {
+            input.value = '';
+            clear.classList.add('d-none');
+            load(buildUrl());
+            input.focus();
+        });
+
+        // Link pagination di dalam hasil juga dimuat via AJAX
+        document.addEventListener('click', (e) => {
+            const a = e.target.closest('#gw-results .pagination a');
+            if (!a) return;
+            e.preventDefault();
+            load(a.href);
+            document.getElementById('gw-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    })();
+
+    // =================================================
 
     // 2. UPDATED LOGIC for Payment Status Selection (WITH SKIP CHECK)
-    document.querySelectorAll('.payment-status-select').forEach(selectElement => {
-        selectElement.addEventListener('change', function (e) {
+    // Event delegation: tetap jalan setelah tabel diganti oleh live search
+    document.addEventListener('change', function (e) {
+        if (!e.target.matches('.payment-status-select')) return;
+        (function () {
             const selectedStatus = e.target.value;
             const form = e.target.closest('form');
             
@@ -804,7 +926,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Case: Belum Dibayar -> Submit Immediately
                 form.submit();
             }
-        });
+        }).call(e.target);
     });
 
     // Auto-focus logic for modal

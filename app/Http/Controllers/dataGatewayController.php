@@ -54,7 +54,9 @@ private $processStatuses = [
         $query->when($search, function ($q) use ($search) {
             $q->where(function($sub) use ($search) {
                 $sub->where('receipt_code', 'like', "%$search%")
-                    ->orWhere('customer_name', 'like', "%$search%");
+                    ->orWhere('customer_name', 'like', "%$search%")
+                    ->orWhere('phone_number', 'like', "%$search%")
+                    ->orWhere('order_id', 'like', "%$search%");
             });
         })
         ->when($request->filled('payment_status'), function ($q) use ($request) {
@@ -95,7 +97,10 @@ private $processStatuses = [
             $isManualFilter = $request->has('date_filter_applied');
 
             // Default to Current Month ONLY IF no manual filter applied
-            if (!$isManualFilter && !$request->filled('start_date') && !$request->filled('end_date')) {
+            // Saat mencari, jangan batasi ke bulan ini agar transaksi lama tetap ketemu
+            $isSearching = $request->filled('search');
+
+            if (!$isManualFilter && !$isSearching && !$request->filled('start_date') && !$request->filled('end_date')) {
                 $startOfMonth = Carbon::now()->startOfMonth()->format('Y-m-d');
                 $endOfMonth = Carbon::now()->endOfMonth()->format('Y-m-d');
 
