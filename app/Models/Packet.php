@@ -22,6 +22,35 @@ class Packet extends Model
         'duration_minutes'
     ];
 
+    /** Ukuran 1 slot jadwal (menit). */
+    public const SLOT_MINUTES = 30;
+
+    /** Sisa menit di atas kelipatan slot yang masih dibulatkan ke bawah. */
+    public const ROUND_THRESHOLD = 15;
+
+    /**
+     * Bulatkan durasi ke kelipatan 30 menit dengan threshold 15 menit:
+     * sisa ≤ 15 menit dibulatkan ke bawah, sisa > 15 menit dibulatkan ke
+     * atas, dan minimal 1 slot (30 menit).
+     *
+     *   15 → 30, 40 → 30, 45 → 30, 50 → 60, 60 → 60, 85 → 90
+     */
+    public static function roundToSlotMinutes(?int $minutes): int
+    {
+        $minutes = max(0, (int) $minutes);
+        $blocks = intdiv($minutes, self::SLOT_MINUTES);
+        if ($minutes % self::SLOT_MINUTES > self::ROUND_THRESHOLD) {
+            $blocks++;
+        }
+        return max(1, $blocks) * self::SLOT_MINUTES;
+    }
+
+    /** Jumlah slot 30 menit yang ditempati sebuah booking. */
+    public static function slotCount(?int $minutes): int
+    {
+        return intdiv(self::roundToSlotMinutes($minutes), self::SLOT_MINUTES);
+    }
+
     public function transaksis()
     {
         return $this->hasMany(Transaksi::class);

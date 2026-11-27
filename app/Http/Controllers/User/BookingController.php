@@ -43,7 +43,9 @@ class BookingController extends Controller
         $slots = [];
         // $start = Carbon::createFromFormat('H:i', $startTime);
         $start = Carbon::parse($startTime);
-        $slotCount = (int) ceil($durationMinutes / 30); // misal 60 menit → 2 slot
+        // Durasi dibulatkan ke kelipatan 30 menit (threshold 15 menit),
+        // mis. 40/45 menit → 1 slot, 50 menit → 2 slot. Lihat Packet::roundToSlotMinutes().
+        $slotCount = Packet::slotCount($durationMinutes);
 
         for ($i = 0; $i < $slotCount; $i++) {
             $slots[] = $start->copy()->addMinutes($i * 30)->format('H:i');

@@ -58,35 +58,37 @@
                                             <label for="duration_minutes" class="form-label">
                                                 Durasi Pemotretan
                                             </label>
-                                            <select class="form-select @error('duration_minutes') is-invalid @enderror"
-                                                    id="duration_minutes"
-                                                    name="duration_minutes"
-                                                    required>
-                                                @php
-                                                    $durations = [
-                                                        30  => '30 menit',
-                                                        60  => '1 jam',
-                                                        90  => '1 jam 30 menit',
-                                                        120 => '2 jam',
-                                                        150 => '2 jam 30 menit',
-                                                        180 => '3 jam',
-                                                        210 => '3 jam 30 menit',
-                                                        240 => '4 jam',
-                                                    ];
-                                                @endphp
-                                                <option value="" disabled {{ old('duration_minutes') ? '' : 'selected' }}>
-                                                    -- Pilih Durasi --
-                                                </option>
-                                                @foreach($durations as $value => $label)
-                                                    <option value="{{ $value }}"
-                                                        {{ old('duration_minutes', 60) == $value ? 'selected' : '' }}>
-                                                        {{ $label }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                            @error('duration_minutes')
-                                                <div class="invalid-feedback">{{ $message }}</div>
-                                            @enderror
+                                            <div class="input-group has-validation">
+                                                <input type="number"
+                                                       class="form-control js-duration-input @error('duration_minutes') is-invalid @enderror"
+                                                       id="duration_minutes"
+                                                       name="duration_minutes"
+                                                       value="{{ old('duration_minutes', 60) }}"
+                                                       min="15" max="480" step="1" required>
+                                                <span class="input-group-text">menit</span>
+                                                @error('duration_minutes')
+                                                    <div class="invalid-feedback">{{ $message }}</div>
+                                                @enderror
+                                            </div>
+                                            <small class="text-muted d-block mt-1 js-duration-hint">
+                                                Slot jadwal dibulatkan per 30 menit (sisa &le; 15 menit dibulatkan ke bawah).
+                                            </small>
+                                            <script>
+                                                (function () {
+                                                    const input = document.currentScript.parentElement.querySelector('.js-duration-input');
+                                                    const hint  = document.currentScript.parentElement.querySelector('.js-duration-hint');
+                                                    const fmt = m => (Math.floor(m / 60) ? Math.floor(m / 60) + ' jam' : '') + (m % 60 ? (m >= 60 ? ' ' : '') + (m % 60) + ' menit' : '');
+                                                    const round = m => { let b = Math.floor(m / 30); if (m % 30 > 15) b++; return Math.max(1, b) * 30; };
+                                                    const update = () => {
+                                                        const m = parseInt(input.value, 10);
+                                                        if (!m || m < 1) return;
+                                                        const r = round(m);
+                                                        hint.textContent = 'Menempati slot jadwal: ' + fmt(r) + ' (' + (r / 30) + ' slot)' + (r !== m ? ' — dibulatkan dari ' + fmt(m) : '');
+                                                    };
+                                                    input.addEventListener('input', update);
+                                                    update();
+                                                })();
+                                            </script>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
