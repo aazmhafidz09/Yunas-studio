@@ -8,6 +8,14 @@
 @endphp
 
 @section('css')
+<style>
+    /* Kartu ringkasan: lebar & tinggi seragam dalam satu baris */
+    .summary-cards > .col > .card,
+    .summary-cards > .col > a.clickable-card { height: 100%; }
+    .summary-cards > .col > a.clickable-card { display: block; }
+    .summary-cards .card { margin-bottom: 0; height: 100%; }
+    .summary-cards .card-body { display: flex; flex-direction: column; justify-content: center; }
+</style>
 {{-- CSS Section --}}
 <style>
     .invoice-modal .modal-dialog { max-width: 800px; }
@@ -130,10 +138,8 @@
     @endcomponent
 
     {{-- Summary Cards Row --}}
-    <div class="row">
-        <div class="col-lg-9">
-            <div class="row">
-                <div class="col-md-4">
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-5 g-3 mb-4 summary-cards">
+        <div class="col">
                     <div class="card mini-stats-wid">
                         <div class="card-body">
                             <div class="d-flex">
@@ -157,7 +163,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
+        <div class="col">
                     <div class="card mini-stats-wid">
                         <div class="card-body">
                             <div class="d-flex">
@@ -181,7 +187,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
+        <div class="col">
                     <div class="card mini-stats-wid">
                         <div class="card-body">
                             <div class="d-flex">
@@ -205,9 +211,7 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-lg-3">
+        <div class="col">
             <a href="javascript:void(0);" id="profit-card-toggler" 
                 data-filtered-profit="{{ $totalProfit }}" 
                 data-overall-profit="{{ $totalOverallProfit }}" 
@@ -236,9 +240,8 @@
                 </div>
             </a>
         </div>
-    </div>
     
-    <div class="col-md-4">
+        <div class="col">
     <div class="card mini-stats-wid">
         <div class="card-body">
             <div class="d-flex">
@@ -262,7 +265,8 @@
             </div>
         </div>
     </div>
-</div>
+        </div>
+    </div>
 
     {{-- Interactive Filter Card --}}
     <div class="row">

@@ -59,6 +59,11 @@
         .toggle-amount-visibility:hover {
             color: #4458b8;
         }
+
+        /* Kartu ringkasan: tinggi seragam & nominal tidak terpotong ke bawah */
+        .summary-cards > [class*="col-"] > .card { height: 100%; margin-bottom: 0; }
+        .summary-cards h4 { white-space: nowrap; }
+        .summary-cards .dropdown-toggle { font-size: 12px; }
     </style>
 @endsection
 
@@ -69,12 +74,12 @@
         @slot('title') Dashboard @endslot
     @endcomponent
 
-    <div class="row">
+    <div class="row g-3 mb-4 summary-cards">
         {{-- Total Income Card with Filter --}}
         <div class="col-md-6 col-xl-3">
             <div class="card">
                 <div class="card-body">
-                    <div class="float-end">
+                    <div class="d-flex justify-content-end mb-1 income-filter-row">
                         <div class="dropdown">
                             <a class="dropdown-toggle text-reset" href="#" id="dropdownMenuButtonIncome"
                                 data-bs-toggle="dropdown" aria-haspopup="true"

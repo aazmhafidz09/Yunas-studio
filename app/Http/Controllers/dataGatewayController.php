@@ -54,7 +54,9 @@ private $processStatuses = [
         $query->when($search, function ($q) use ($search) {
             $q->where(function($sub) use ($search) {
                 $sub->where('receipt_code', 'like', "%$search%")
-                    ->orWhere('customer_name', 'like', "%$search%");
+                    ->orWhere('customer_name', 'like', "%$search%")
+                    ->orWhere('phone_number', 'like', "%$search%")
+                    ->orWhere('order_id', 'like', "%$search%");
             });
         })
         ->when($request->filled('payment_status'), function ($q) use ($request) {
@@ -95,7 +97,10 @@ private $processStatuses = [
             $isManualFilter = $request->has('date_filter_applied');
 
             // Default to Current Month ONLY IF no manual filter applied
-            if (!$isManualFilter && !$request->filled('start_date') && !$request->filled('end_date')) {
+            // Saat mencari, jangan batasi ke bulan ini agar transaksi lama tetap ketemu
+            $isSearching = $request->filled('search');
+
+            if (!$isManualFilter && !$isSearching && !$request->filled('start_date') && !$request->filled('end_date')) {
                 $startOfMonth = Carbon::now()->startOfMonth()->format('Y-m-d');
                 $endOfMonth = Carbon::now()->endOfMonth()->format('Y-m-d');
 
@@ -219,5 +224,126 @@ private $processStatuses = [
             'packetsForFilter', 'paymentStatuses', 'processStatuses',
             'filterLabel'
         ));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // UPDATE — dipanggil via AJAX dari modal edit (PUT /gateway/{id})
+    // ═══════════════════════════════════════════════════════════════════
+    public function update(Request $request, string $id)
+    {
+        $this->authorizeAdmin();
+        $gateway = Gateway::findOrFail($id);
+
+        $validated = $request->validate([
+            'customer_name'  => 'required|string|max:255',
+            'phone_number'   => 'nullable|string|max:20',
+            'packet_id'      => 'nullable|exists:packets,id',
+            'session_date'   => 'nullable|date',
+            'session_time'   => 'nullable|date_format:H:i',
+            'total_price'    => 'required|numeric|min:0',
+            'dp_amount'      => 'nullable|numeric|min:0|lte:total_price',
+            'discount'       => 'nullable|numeric|min:0',
+            'status'         => ['required', Rule::in(['belum dibayar', 'dp', 'sudah dibayar', 'gagal'])],
+            'process_status' => ['nullable', Rule::in($this->processStatuses)],
+            'payment_type'   => 'nullable|string|max:50',
+            'note'           => 'nullable|string|max:1000',
+        ], [
+            'dp_amount.lte' => 'Nominal DP tidak boleh melebihi total biaya.',
+        ]);
+
+        $validated['dp_amount'] = $validated['dp_amount'] ?? 0;
+        $validated['discount']  = $validated['discount'] ?? 0;
+
+        $gateway->update($validated);
+
+        return response()->json([
+            'message' => 'Transaksi berhasil diperbarui.',
+        ]);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // UPDATE STATUS — dropdown Status Pembayaran / Pengerjaan di tabel
+    // (PUT /gateway/{id}/update-status). Versi gateway dari
+    // TransaksiController@updateStatus, karena ID di sini adalah ID
+    // transaksi_gateway, bukan tabel transaksi.
+    // ═══════════════════════════════════════════════════════════════════
+    public function updateStatus(Request $request, string $id)
+    {
+        $this->authorizeAdmin();
+        $gateway = Gateway::findOrFail($id);
+
+        try {
+            $request->validate([
+                'field' => ['required', Rule::in(['status', 'process_status', 'payment_type', 'url_images', 'url_photos_result'])],
+                'value' => 'nullable|string|max:2000',
+                'dp_amount' => 'nullable|numeric|min:0',
+                'payment_type' => 'nullable|string|max:50',
+            ]);
+
+            $field = $request->input('field');
+            $value = $request->input('value');
+
+            if ($field === 'status') {
+                $request->validate(['value' => ['required', Rule::in(['belum dibayar', 'menunggu pembayaran', 'dp', 'sudah dibayar', 'gagal', 'xendit'])]]);
+
+                if ($value === 'dp') {
+                    $request->validate(['dp_amount' => 'required|numeric|min:0|lte:' . (float) $gateway->total_price], [
+                        'dp_amount.lte' => 'Nominal DP tidak boleh melebihi total biaya.',
+                    ]);
+                    $gateway->dp_amount = $request->input('dp_amount');
+                } elseif ($value === 'belum dibayar') {
+                    $gateway->dp_amount = 0;
+                    $gateway->payment_type = 'none';
+                }
+
+                if ($request->filled('payment_type')) {
+                    $gateway->payment_type = $request->input('payment_type');
+                }
+            } elseif ($field === 'process_status') {
+                $request->validate(['value' => ['required', Rule::in($this->processStatuses)]]);
+            } elseif ($field === 'url_images' && !empty($value) && $gateway->process_status === 'Pelanggan Belum Foto') {
+                $gateway->process_status = 'Pelanggan Pilih Foto';
+            }
+
+            $gateway->{$field} = $value;
+            $gateway->save();
+
+            return back()->with('success', 'Status berhasil diperbarui.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Layout admin hanya menampilkan session('error'), bukan $errors
+            return back()->with('error', collect($e->errors())->flatten()->first());
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // DESTROY — dipanggil via AJAX dari modal konfirmasi (DELETE /gateway/{id})
+    // Catatan: pivot additional_transaksi, selected_photos, dll. ber-FK ke
+    // tabel `transaksi` (bukan transaksi_gateway), jadi SENGAJA tidak disentuh
+    // agar tidak ikut menghapus data transaksi kasir dengan ID yang sama.
+    // ═══════════════════════════════════════════════════════════════════
+    public function destroy(string $id)
+    {
+        $this->authorizeAdmin();
+        $gateway = Gateway::findOrFail($id);
+
+        Log::info('Gateway transaksi dihapus', [
+            'transaction_id' => $gateway->transaction_id,
+            'order_id'       => $gateway->order_id,
+            'by_user_id'     => auth()->id(),
+        ]);
+
+        $gateway->delete();
+
+        return response()->json([
+            'message' => 'Transaksi berhasil dihapus.',
+        ]);
+    }
+
+    private function authorizeAdmin(): void
+    {
+        $user = auth()->user();
+        if (!$user->isAdmin() && !$user->isKasir()) {
+            abort(403, 'AKSES DITOLAK: Halaman ini khusus Admin/Kasir.');
+        }
     }
 }

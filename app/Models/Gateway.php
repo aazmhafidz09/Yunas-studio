@@ -34,6 +34,29 @@ class Gateway extends Model
         'session_time',
     ];
 
+    /**
+     * Catatan yang ditulis pelanggan saat booking online.
+     * Kolom `note` juga memuat info sistem ("Booking online — ..."),
+     * jadi hanya bagian setelah "Catatan pelanggan:" yang diambil.
+     * Catatan yang diinput manual oleh admin ditampilkan apa adanya.
+     */
+    public function getCustomerNoteAttribute(): ?string
+    {
+        $note = trim((string) $this->note);
+        if ($note === '') {
+            return null;
+        }
+
+        $marker = 'Catatan pelanggan:';
+        $pos = mb_strpos($note, $marker);
+        if ($pos !== false) {
+            $text = trim(mb_substr($note, $pos + mb_strlen($marker)));
+            return $text !== '' ? $text : null;
+        }
+
+        return str_starts_with($note, 'Booking online') ? null : $note;
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);

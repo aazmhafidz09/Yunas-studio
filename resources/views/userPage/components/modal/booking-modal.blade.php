@@ -103,6 +103,19 @@ Perubahan dari versi sebelumnya:
                                 Nomor tidak valid. Gunakan format 08xxxxxxxxxx.
                             </div>
                         </div>
+
+                        <div class="col-12">
+                            <label class="bm-label" for="b_note">
+                                Catatan / Keterangan <span class="bm-optional">(opsional)</span>
+                            </label>
+                            <textarea class="bm-input bm-textarea" id="b_note" rows="3" maxlength="500"
+                                placeholder="Contoh: jumlah orang, tema/konsep foto, permintaan khusus, dll."
+                                oninput="bookingOnNoteInput()"></textarea>
+                            <div class="bm-note-meta">
+                                <small class="text-muted">Catatan akan dibaca oleh tim kami sebelum sesi foto.</small>
+                                <small class="text-muted" id="b_note_counter">0/500</small>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="d-grid mt-4">
@@ -193,6 +206,21 @@ Perubahan dari versi sebelumnya:
                                         <p class="bm-slot-heading" id="b-slot-heading">
                                             Pilih tanggal terlebih dahulu
                                         </p>
+                                        {{-- Legenda slot — diletakkan di atas pilihan waktu --}}
+                                        <div class="bm-legend">
+                                            <span class="bm-legend-item">
+                                                <span class="bm-legend-dot bm-legend-available"></span>
+                                                Tersedia
+                                            </span>
+                                            <span class="bm-legend-item">
+                                                <span class="bm-legend-dot bm-legend-half"></span>
+                                                1 slot terisi
+                                            </span>
+                                            <span class="bm-legend-item">
+                                                <span class="bm-legend-dot bm-legend-full"></span>
+                                                Penuh
+                                            </span>
+                                        </div>
                                         <div id="b-slot-loading" class="text-center py-3 d-none">
                                             <div class="spinner-border spinner-border-sm bm-spinner" role="status">
                                             </div>
@@ -205,24 +233,6 @@ Perubahan dari versi sebelumnya:
                                     </div>
                                 </div>
 
-                            </div>
-
-                            {{-- Legenda --}}
-
-                            <!-- Legenda Slot -->
-                            <div class="bm-legend">
-                                <span class="bm-legend-item">
-                                    <span class="bm-legend-dot bm-legend-available"></span>
-                                    Tersedia
-                                </span>
-                                <span class="bm-legend-item">
-                                    <span class="bm-legend-dot bm-legend-half"></span>
-                                    1 slot terisi
-                                </span>
-                                <span class="bm-legend-item">
-                                    <span class="bm-legend-dot bm-legend-full"></span>
-                                    Penuh
-                                </span>
                             </div>
 
                             <input type="hidden" id="b_session_date">
@@ -400,6 +410,10 @@ Perubahan dari versi sebelumnya:
                                     <td class="bm-tbl-label">Sisa Pembayaran</td>
                                     <td class="bm-tbl-value" id="confirm_remaining">-</td>
                                 </tr>
+                                <tr id="confirm_note_row" class="d-none">
+                                    <td class="bm-tbl-label align-top">Catatan</td>
+                                    <td class="bm-tbl-value bm-note-value" id="confirm_note">-</td>
+                                </tr>
                                 <tr class="bm-tbl-total-row">
                                     <td class="bm-tbl-total-label pt-2" id="confirm_total_label">Total</td>
                                     <td class="bm-tbl-total-value pt-2" id="confirm_total">-</td>
@@ -417,6 +431,19 @@ Perubahan dari versi sebelumnya:
                     <div class="d-none text-center py-3" id="booking-loading">
                         <div class="spinner-border bm-spinner" role="status"></div>
                         <p class="mt-2 bm-slot-heading">Menyimpan booking Anda...</p>
+                    </div>
+
+                    <div class="d-none text-center py-3" id="booking-success">
+                        <div class="bm-success-icon"><i class="mdi mdi-check-bold"></i></div>
+                        <h6 class="fw-bold mt-3 mb-1">Booking berhasil disimpan!</h6>
+                        <p class="small text-muted mb-1">Order ID: <span class="fw-semibold" id="booking-success-order">-</span></p>
+                        <p class="small text-muted mb-3">Silakan konfirmasi booking Anda ke admin melalui WhatsApp.</p>
+                        <div class="d-flex gap-2 justify-content-center flex-wrap">
+                            <a href="#" class="bm-btn-primary px-4 text-decoration-none" id="booking-success-wa" target="_blank" rel="noopener">
+                                <i class="mdi mdi-whatsapp me-1"></i> Konfirmasi via WhatsApp
+                            </a>
+                            <button type="button" class="bm-btn-secondary px-4" data-bs-dismiss="modal">Tutup</button>
+                        </div>
                     </div>
 
                     <div class="d-flex gap-2" id="booking-action-btns">
@@ -693,6 +720,44 @@ Perubahan dari versi sebelumnya:
         -webkit-appearance: none;
     }
 
+    .bm-success-icon {
+        width: 56px;
+        height: 56px;
+        margin: 0 auto;
+        border-radius: 50%;
+        background: #d1fae5;
+        color: #059669;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+    }
+
+    .bm-textarea {
+        resize: vertical;
+        min-height: 84px;
+        line-height: 1.5;
+    }
+
+    .bm-optional {
+        font-weight: 400;
+        color: #adb5bd;
+        font-size: 12px;
+    }
+
+    .bm-note-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 4px;
+        font-size: 12px;
+    }
+
+    .bm-note-value {
+        white-space: pre-line;
+        word-break: break-word;
+    }
+
     .bm-input::placeholder {
         color: #adb5bd;
     }
@@ -934,24 +999,28 @@ Perubahan dari versi sebelumnya:
 
     .bm-legend {
         display: flex;
-        gap: 16px;
-        margin-top: 10px;
+        gap: 8px 18px;
+        margin: 0 0 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px dashed var(--bm-border);
         flex-wrap: wrap;
     }
 
     .bm-legend-item {
         display: flex;
         align-items: center;
-        gap: 5px;
-        font-size: 11px;
+        gap: 7px;
+        font-size: 13px;
+        font-weight: 500;
         color: var(--bm-slate);
     }
 
     .bm-legend-dot {
-        width: 11px;
-        height: 11px;
-        border-radius: 3px;
+        width: 15px;
+        height: 15px;
+        border-radius: 4px;
         display: inline-block;
+        flex-shrink: 0;
     }
 
     .bm-legend-available {
@@ -1256,6 +1325,13 @@ JAVASCRIPT — IIFE UTAMA
                     banner.classList.remove('d-none');
                 }
             }, 50);
+        };
+
+        // ── Counter catatan ───────────────────────────────────────────────
+        window.bookingOnNoteInput = function () {
+            const el = document.getElementById('b_note');
+            const counter = document.getElementById('b_note_counter');
+            if (el && counter) counter.textContent = el.value.length + '/500';
         };
 
         // ── Step navigation ───────────────────────────────────────────────
@@ -1584,6 +1660,9 @@ JAVASCRIPT — IIFE UTAMA
             
             document.getElementById('confirm_name').textContent = document.getElementById('b_customer_name').value;
             document.getElementById('confirm_phone').textContent = document.getElementById('b_phone_number').value;
+            const noteVal = document.getElementById('b_note').value.trim();
+            document.getElementById('confirm_note').textContent = noteVal || '-';
+            document.getElementById('confirm_note_row').classList.toggle('d-none', !noteVal);
             document.getElementById('confirm_product').textContent = productSel.options[productSel.selectedIndex]?.dataset.productName || '-';
             document.getElementById('confirm_packet').textContent = packetSel.options[packetSel.selectedIndex]?.dataset.name || '-';
             document.getElementById('confirm_duration').textContent = duration ? formatDuration(duration) : '-';
@@ -1666,6 +1745,7 @@ JAVASCRIPT — IIFE UTAMA
                 payment_option: getPaymentType(),
                 dp_amount: getPaymentType() === 'dp' ? getDpAmount() : null,
                 additionals: additionalsPayload,
+                note: document.getElementById('b_note').value.trim() || null,
             };
 
             try {
@@ -1688,9 +1768,21 @@ JAVASCRIPT — IIFE UTAMA
                     throw new Error(errMsg);
                 }
 
-                const target = invoiceData.redirect_url || invoiceData.invoice_url;
-                if (!target) throw new Error('URL tujuan tidak ditemukan.');
-                window.location.href = target;
+                // Bayar di lokasi → booking sudah tersimpan, lanjut konfirmasi WhatsApp.
+                // Link WhatsApp sering membuka aplikasi (bukan pindah halaman), jadi
+                // tampilkan status sukses di modal agar modal tidak tertahan "loading".
+                if (invoiceData.redirect_url) {
+                    loadingEl.classList.add('d-none');
+                    closeBtn.disabled = false;
+                    document.getElementById('booking-success-order').textContent = invoiceData.order_id || '-';
+                    document.getElementById('booking-success-wa').href = invoiceData.redirect_url;
+                    document.getElementById('booking-success').classList.remove('d-none');
+                    window.location.href = invoiceData.redirect_url;
+                    return;
+                }
+
+                if (!invoiceData.invoice_url) throw new Error('URL tujuan tidak ditemukan.');
+                window.location.href = invoiceData.invoice_url;
 
             } catch (error) {
                 loadingEl.classList.add('d-none');
@@ -1699,6 +1791,19 @@ JAVASCRIPT — IIFE UTAMA
                 showInlineError(error.message);
             }
         };
+
+        // Kembali ke halaman ini lewat tombol Back (bfcache) → jangan biarkan
+        // modal tertahan dalam status loading dengan tombol close nonaktif.
+        window.addEventListener('pageshow', function (e) {
+            if (!e.persisted) return;
+            const loading = document.getElementById('booking-loading');
+            if (loading && !loading.classList.contains('d-none')) {
+                loading.classList.add('d-none');
+                document.getElementById('booking-action-btns')?.classList.remove('d-none');
+                const btn = document.getElementById('bookingCloseBtn');
+                if (btn) btn.disabled = false;
+            }
+        });
 
         function showInlineError(message) {
             const existing = document.getElementById('booking-inline-error');
@@ -1718,10 +1823,11 @@ JAVASCRIPT — IIFE UTAMA
                 return;
             }
 
-            ['b_customer_name', 'b_phone_number'].forEach(id => {
+            ['b_customer_name', 'b_phone_number', 'b_note'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) { el.value = ''; el.classList.remove('is-invalid'); }
             });
+            if (window.bookingOnNoteInput) window.bookingOnNoteInput();
             ['b_product_id'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) { el.selectedIndex = 0; el.classList.remove('is-invalid'); }
@@ -1745,6 +1851,7 @@ JAVASCRIPT — IIFE UTAMA
             document.getElementById('booking-price-summary')?.classList.add('d-none');
             document.getElementById('b-duration-hint')?.classList.add('d-none');
             document.getElementById('booking-loading')?.classList.add('d-none');
+            document.getElementById('booking-success')?.classList.add('d-none');
             document.getElementById('booking-action-btns')?.classList.remove('d-none');
             document.getElementById('bookingCloseBtn') && (document.getElementById('bookingCloseBtn').disabled = false);
             document.getElementById('booking-inline-error')?.remove();
@@ -1958,11 +2065,14 @@ JAVASCRIPT — KALENDER & SLOT WAKTU
                     btn.style.cursor = 'not-allowed';
                 } else if (slot.booked === 1) {
                     applySlotStyle(btn, isSelected, 'half');
-                    btn.classList.add('b-slot-btn-half');
+                    // Efek hover hanya untuk slot yang belum dipilih, agar warna
+                    // slot terpilih tidak tertimpa saat kursor masih di atasnya.
+                    if (!isSelected) btn.classList.add('b-slot-btn-half');
                 } else {
                     applySlotStyle(btn, isSelected, 'available');
-                    btn.classList.add('b-slot-btn-available');
+                    if (!isSelected) btn.classList.add('b-slot-btn-available');
                 }
+                if (isSelected) btn.setAttribute('aria-pressed', 'true');
 
                 if (slot.available) {
                     btn.onclick = () => selectSlot(slot.time, dateStr);

@@ -43,7 +43,9 @@ class BookingController extends Controller
         $slots = [];
         // $start = Carbon::createFromFormat('H:i', $startTime);
         $start = Carbon::parse($startTime);
-        $slotCount = (int) ceil($durationMinutes / 30); // misal 60 menit → 2 slot
+        // Durasi dibulatkan ke kelipatan 30 menit (threshold 15 menit),
+        // mis. 40/45 menit → 1 slot, 50 menit → 2 slot. Lihat Packet::roundToSlotMinutes().
+        $slotCount = Packet::slotCount($durationMinutes);
 
         for ($i = 0; $i < $slotCount; $i++) {
             $slots[] = $start->copy()->addMinutes($i * 30)->format('H:i');
@@ -95,6 +97,7 @@ class BookingController extends Controller
             'dp_amount' => 'required_if:payment_option,dp|nullable|numeric|min:50000',
             'additionals' => 'nullable|array',
             'additionals.*.quantity' => 'required_with:additionals|integer|min:1',
+            'note' => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
@@ -199,7 +202,8 @@ class BookingController extends Controller
                 'note' => 'Booking online — ' . $validated['session_date'] . ' ' . $validated['session_time']
                     . ($paymentOption === 'dp'
                        ? ' (Rencana DP: Rp ' . number_format($dpAmountInput, 0, ',', '.') . ')'
-                        : ($isOnLocation ? ' (Bayar di Lokasi)' : ' (Rencana Bayar Penuh)')),
+                        : ($isOnLocation ? ' (Bayar di Lokasi)' : ' (Rencana Bayar Penuh)'))
+                    . (!empty($validated['note']) ? "\nCatatan pelanggan: " . trim($validated['note']) : ''),
                 'receipt_code' => 'TEMP-' . uniqid(),
 
             ]);
@@ -237,6 +241,7 @@ class BookingController extends Controller
         'success'      => true,
         'message'      => 'Booking berhasil dibuat. Pembayaran dilakukan di lokasi.',
         'redirect_url' => route('payment.success', ['order_id' => $receiptCode]),
+        'order_id'     => $receiptCode,
     ]);
 }
         // ── Bagian Xendit dipisah DI LUAR DB transaction ──────────────

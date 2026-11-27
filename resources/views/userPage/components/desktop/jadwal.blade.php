@@ -202,11 +202,41 @@
                     </div>
                 </div>
 
+                {{-- ── Tabel booking pada tanggal terpilih ── --}}
+                <div class="sch-card sch-bk-card d-none" id="sc-bk-card">
+                    <div class="sch-card-header d-flex align-items-center justify-content-between">
+                        <div>
+                            <i class="mdi mdi-format-list-bulleted me-2"></i>
+                            Daftar Booking <span id="sc-bk-date"></span>
+                        </div>
+                        <span class="sch-slot-ops" id="sc-bk-count"></span>
+                    </div>
+                    <div class="sch-card-body p-0">
+                        <div class="sch-bk-scroll">
+                            <table class="sch-bk-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nama Pelanggan</th>
+                                        <th>Jam</th>
+                                        <th>Tanggal</th>
+                                        <th>Tanggal Book</th>
+                                        <th>Produk</th>
+                                        <th>Studio</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sc-bk-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 {{-- Info tambahan --}}
                 <div class="sch-info-card">
                     <i class="mdi mdi-information-outline me-2" style="color: var(--sc-blue); font-size:16px;"></i>
-                    Setiap slot maksimal untuk <strong>2 sesi</strong> bersamaan.
-                    Slot berwarna kuning berarti masih ada 1 tempat tersisa.
+                    <span>
+                        Setiap slot maksimal untuk <strong>2 sesi</strong> bersamaan.
+                        Slot berwarna kuning berarti masih ada 1 tempat tersisa.
+                    </span>
                 </div>
             </div>
             {{-- /kolom kanan --}}
@@ -276,12 +306,16 @@
 .sch-container { padding: 0 20px; }
 .sch-layout {
     display: grid;
-    grid-template-columns: 340px 1fr;
+    grid-template-columns: 340px minmax(0, 1fr);
     gap: 24px;
     align-items: start;
 }
+/* min-width:0 mencegah kolom grid melebar mengikuti konten lebar
+   (mis. tabel booking yang bisa di-scroll horizontal) */
+.sch-left, .sch-right { min-width: 0; }
+.sch-page { overflow-x: hidden; }
 @media (max-width: 900px) {
-    .sch-layout { grid-template-columns: 1fr; }
+    .sch-layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
 }
 
 /* ── Card ── */
@@ -574,6 +608,136 @@
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(15,52,96,.2);
 }
+
+/* ── Tabel booking harian ── */
+.sch-bk-card { margin-bottom: 16px; }
+.sch-bk-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.sch-bk-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 560px; }
+.sch-bk-table th {
+    text-align: left; font-size: 11px; font-weight: 600;
+    color: var(--sc-slate); background: var(--sc-surface);
+    padding: 10px 14px; border-bottom: 1px solid var(--sc-border);
+    white-space: nowrap;
+}
+.sch-bk-table td {
+    padding: 10px 14px; border-bottom: 1px solid var(--sc-border);
+    color: var(--sc-text); vertical-align: middle; white-space: nowrap;
+}
+.sch-bk-table tbody tr:last-child td { border-bottom: none; }
+.sch-bk-name { font-weight: 700; letter-spacing: .5px; }
+.sch-bk-sub  { display: block; font-size: 11px; color: var(--sc-slate); }
+.sch-bk-studio {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 2px 10px; border-radius: 20px;
+}
+.sch-bk-studio.st-a { background: #dbeafe; color: #1e40af; }
+.sch-bk-studio.st-b { background: #ede9fe; color: #5b21b6; }
+.sch-bk-studio.st-x { background: #fee2e2; color: #991b1b; }
+.sch-bk-empty { text-align: center; color: var(--sc-slate); padding: 24px 14px !important; }
+
+/* ── Responsive: tablet & HP ── */
+@media (max-width: 576px) {
+    .sch-page { padding-bottom: 96px; } /* ruang untuk bottom navbar PWA */
+    .sch-hero { padding: 24px 0 20px; margin-bottom: 16px; }
+    .sch-hero-inner { padding: 0 16px; gap: 12px; }
+    .sch-hero-icon { width: 44px; height: 44px; font-size: 22px; border-radius: 12px; }
+    .sch-hero-title { font-size: 20px; }
+    .sch-hero-sub { font-size: 12px; }
+
+    .sch-container { padding: 0 12px; }
+    .sch-card { border-radius: 14px; }
+    .sch-card-header { padding: 12px 14px; font-size: 12px; flex-wrap: wrap; gap: 4px; }
+    .sch-card-body { padding: 14px; }
+
+    .sch-cal-circle { width: 34px; height: 34px; font-size: 12px; }
+    .sch-cal-dow { font-size: 9px; letter-spacing: 0; }
+
+    .sch-legend-card { padding: 12px 14px; gap: 10px 16px; }
+
+    .sch-slot-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
+    .sch-slot-btn { padding: 10px 4px; }
+    .sch-slot-time { font-size: 12px; }
+
+    .sch-info-card { font-size: 11px; padding: 10px 12px; }
+
+    /* Tabel booking → kartu bertumpuk di HP */
+    .sch-bk-table { min-width: 0; }
+    .sch-bk-table thead { display: none; }
+    .sch-bk-table, .sch-bk-table tbody, .sch-bk-table tr, .sch-bk-table td { display: block; width: 100%; }
+    .sch-bk-table tr { padding: 10px 14px; border-bottom: 1px solid var(--sc-border); }
+    .sch-bk-table tbody tr:last-child { border-bottom: none; }
+    .sch-bk-table td {
+        border: none; padding: 3px 0; white-space: normal;
+        display: flex; justify-content: space-between; gap: 12px; text-align: right;
+    }
+    .sch-bk-table td::before {
+        content: attr(data-label);
+        font-size: 11px; color: var(--sc-slate); font-weight: 500; text-align: left;
+        flex-shrink: 0;
+    }
+    .sch-bk-table td.sch-bk-empty { display: block; text-align: center; }
+    .sch-bk-table td.sch-bk-empty::before { content: none; }
+}
+
+/* ── Popover detail slot ── */
+.sch-pop {
+    position: absolute; z-index: 1080;
+    width: 300px; max-width: calc(100vw - 32px);
+    background: var(--sc-white, #fff);
+    border: 1px solid var(--sc-border, #e5e7eb);
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(15,23,42,.18);
+    padding: 14px;
+    font-size: 12px; color: var(--sc-text, #1f2937);
+}
+.sch-pop-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+}
+.sch-pop-time { font-size: 15px; font-weight: 700; }
+.sch-pop-count {
+    font-size: 11px; font-weight: 600;
+    padding: 3px 10px; border-radius: 20px;
+    background: #FFF8E1; color: #92400E;
+}
+.sch-pop-date { font-size: 11px; color: var(--sc-slate, #64748b); margin: -6px 0 10px; }
+.sch-pop-studio {
+    border: 1px solid var(--sc-border, #e5e7eb);
+    border-radius: 10px; padding: 10px 12px;
+    margin-bottom: 8px;
+}
+.sch-pop-studio.is-empty { border-style: dashed; color: var(--sc-slate, #64748b); }
+.sch-pop-studio-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .4px;
+    text-transform: uppercase; color: var(--sc-slate, #64748b);
+    margin-bottom: 4px;
+}
+.sch-pop-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sch-pop-name { font-size: 13px; font-weight: 700; letter-spacing: .5px; }
+.sch-pop-sub  { font-size: 11px; color: var(--sc-slate, #64748b); margin-top: 2px; }
+.sch-pop-cont {
+    display: flex; align-items: center; gap: 4px;
+    margin-top: 6px; padding: 4px 8px;
+    font-size: 11px; font-weight: 500;
+    color: var(--sc-blue, #0f3460);
+    background: #f0f4ff; border-radius: 6px;
+}
+.sch-pop-badge {
+    font-size: 10px; font-weight: 600; white-space: nowrap;
+    padding: 2px 8px; border-radius: 20px;
+}
+.sch-pop-badge.st-paid   { background: #d1fae5; color: #065f46; }
+.sch-pop-badge.st-dp     { background: #dbeafe; color: #1e40af; }
+.sch-pop-badge.st-unpaid { background: #fef3c7; color: #92400e; }
+.sch-pop-dp {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 6px; font-size: 11px; color: var(--sc-slate, #64748b);
+}
+.sch-pop-dp-val { font-weight: 700; color: var(--sc-text, #1f2937); font-variant-numeric: tabular-nums; }
+.sch-pop-eye {
+    background: none; border: none; padding: 0 2px;
+    color: var(--sc-blue, #0f3460); cursor: pointer; font-size: 15px; line-height: 1;
+}
 </style>
 
 
@@ -586,6 +750,7 @@ let _calYear  = new Date().getFullYear();
 let _calMonth = new Date().getMonth();
 let _selectedDate = null;   // tanggal aktif di kalender
 let _slots    = [];         // cache slot terakhir
+let _dayBookings = [];      // booking pada tanggal terpilih (untuk tabel)
 
 // Reschedule state
 let _rsMode        = false; // sedang dalam mode pilih slot reschedule?
@@ -611,6 +776,9 @@ const formatDateShort = (s) => s
 
 const formatRp = (n) =>
     new Intl.NumberFormat('id-ID', { style:'currency', currency:'IDR', minimumFractionDigits:0 }).format(n);
+
+const escHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 
 const formatDuration = (m) => {
     const j = Math.floor(m / 60), s = m % 60;
@@ -729,17 +897,48 @@ async function fetchSlots(dateStr) {
         });
         const data = await res.json();
         _slots = data.slots || [];
+        _dayBookings = data.bookings || [];
     } catch {
         _slots = [];
+        _dayBookings = [];
     }
 
     loading.classList.add('d-none');
     header.textContent = formatDate(dateStr);
     renderSlotGrid(dateStr);
+    renderBookingTable(dateStr);
+}
+
+function renderBookingTable(dateStr) {
+    const card  = document.getElementById('sc-bk-card');
+    const body  = document.getElementById('sc-bk-body');
+    card.classList.remove('d-none');
+    document.getElementById('sc-bk-date').textContent = '— ' + formatDateShort(dateStr);
+    document.getElementById('sc-bk-count').textContent = _dayBookings.length + ' booking';
+
+    if (_dayBookings.length === 0) {
+        body.innerHTML = '<tr><td colspan="6" class="sch-bk-empty">Belum ada booking pada tanggal ini.</td></tr>';
+        return;
+    }
+
+    body.innerHTML = _dayBookings.map(b => {
+        const studio = b.studio
+            ? `<span class="sch-bk-studio st-${b.studio.toLowerCase()}">Studio ${escHtml(b.studio)}</span>`
+            : '<span class="sch-bk-studio st-x">—</span>';
+        return `<tr>
+            <td class="sch-bk-name" data-label="Nama">${escHtml(b.name)}</td>
+            <td data-label="Jam">${escHtml(b.start)} – ${escHtml(b.end)}</td>
+            <td data-label="Tanggal">${escHtml(b.created_at ? formatDateShort(b.created_at) : '-')}</td>
+            <td data-label="Tanggal Book">${escHtml(formatDateShort(b.session_date))}</td>
+            <td data-label="Produk"><span>${escHtml(b.product_name)}<span class="sch-bk-sub">${escHtml(b.packet_name)}</span></span></td>
+            <td data-label="Studio">${studio}</td>
+        </tr>`;
+    }).join('');
 }
 
 function renderSlotGrid(dateStr) {
     const grid = document.getElementById('sc-slot-grid');
+    closeSlotPopover();
     grid.innerHTML = '';
     grid.classList.remove('d-none');
 
@@ -777,11 +976,125 @@ function renderSlotGrid(dateStr) {
                 btn.classList.add('rs-slot-selected');
             }
             btn.onclick = () => selectRsSlot(slot.time, dateStr);
+        } else if (slot.bookings && slot.bookings.length) {
+            // Slot terisi: klik untuk lihat detail siapa yang booking
+            btn.disabled = false;
+            btn.style.cursor = 'pointer';
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                toggleSlotPopover(btn, slot, dateStr);
+            };
         }
 
         grid.appendChild(btn);
     });
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   POPOVER DETAIL SLOT (Studio A / Studio B)
+═══════════════════════════════════════════════════════════════════ */
+let _popEl = null, _popAnchor = null;
+
+
+const STATUS_MAP = {
+    'sudah dibayar': { label: 'Lunas',         cls: 'st-paid' },
+    'dp':            { label: 'DP',            cls: 'st-dp' },
+    'belum dibayar': { label: 'Belum Dibayar', cls: 'st-unpaid' },
+};
+
+function closeSlotPopover() {
+    if (_popEl) _popEl.remove();
+    _popEl = null; _popAnchor = null;
+}
+
+function toggleSlotPopover(btn, slot, dateStr) {
+    if (_popAnchor === btn) { closeSlotPopover(); return; }
+    closeSlotPopover();
+
+    const studios = ['A', 'B'].map(key => {
+        const label = 'Studio ' + key;
+        const b = slot.bookings.find(x => x.studio === key);
+        if (!b) {
+            return `<div class="sch-pop-studio is-empty">
+                        <div class="sch-pop-studio-label">${label}</div>
+                        <div>— Kosong</div>
+                    </div>`;
+        }
+        const st = STATUS_MAP[b.status] || { label: b.status, cls: 'st-unpaid' };
+        const dp = (b.status === 'dp' && b.dp_amount != null)
+            ? `<div class="sch-pop-dp">
+                   <span>DP:</span>
+                   <span class="sch-pop-dp-val" data-amount="${escHtml(formatRp(b.dp_amount))}">Rp ••••••</span>
+                   <button type="button" class="sch-pop-eye" title="Tampilkan nominal" aria-label="Tampilkan nominal DP">
+                       <i class="mdi mdi-eye-outline"></i>
+                   </button>
+               </div>`
+            : '';
+        // Sesi > 30 menit menempati beberapa slot → jelaskan posisi slot ini
+        const toMin = t => { const [h, m] = String(t).split(':').map(Number); return h * 60 + m; };
+        const total = Math.max(1, Math.round((toMin(b.end) - toMin(b.start)) / 30));
+        const idx   = Math.round((toMin(slot.time) - toMin(b.start)) / 30) + 1;
+        let cont = '';
+        if (total > 1) {
+            cont = idx > 1
+                ? `<div class="sch-pop-cont"><i class="mdi mdi-subdirectory-arrow-right"></i>
+                       Lanjutan sesi dari ${escHtml(b.start)} (slot ${idx} dari ${total})</div>`
+                : `<div class="sch-pop-cont"><i class="mdi mdi-arrow-right-bottom"></i>
+                       Berlanjut hingga ${escHtml(b.end)} (slot ${idx} dari ${total})</div>`;
+        }
+        return `<div class="sch-pop-studio">
+                    <div class="sch-pop-studio-label">${label}</div>
+                    <div class="sch-pop-row">
+                        <span class="sch-pop-name">${escHtml(b.name)}</span>
+                        <span class="sch-pop-badge ${st.cls}">${escHtml(st.label)}</span>
+                    </div>
+                    <div class="sch-pop-sub">${escHtml(b.packet_name)} · ${escHtml(b.start)} – ${escHtml(b.end)}</div>
+                    ${cont}
+                    ${dp}
+                </div>`;
+    }).join('');
+
+    const pop = document.createElement('div');
+    pop.className = 'sch-pop';
+    pop.innerHTML = `
+        <div class="sch-pop-head">
+            <span class="sch-pop-time">${escHtml(slot.time)}</span>
+            <span class="sch-pop-count">${Math.min(slot.bookings.length, slot.max)} / ${slot.max} terisi</span>
+        </div>
+        <div class="sch-pop-date">${escHtml(formatDate(dateStr))}</div>
+        ${studios}`;
+
+    // Toggle tampil/sembunyi nominal DP
+    pop.querySelectorAll('.sch-pop-eye').forEach(eye => {
+        eye.onclick = (e) => {
+            e.stopPropagation();
+            const val  = eye.previousElementSibling;
+            const icon = eye.querySelector('i');
+            const shown = eye.dataset.shown === '1';
+            val.textContent = shown ? 'Rp ••••••' : val.dataset.amount;
+            icon.className  = shown ? 'mdi mdi-eye-outline' : 'mdi mdi-eye-off-outline';
+            eye.dataset.shown = shown ? '0' : '1';
+            eye.title = shown ? 'Tampilkan nominal' : 'Sembunyikan nominal';
+        };
+    });
+    pop.addEventListener('click', e => e.stopPropagation());
+
+    document.body.appendChild(pop);
+
+    // Posisikan di bawah tombol, tetap di dalam viewport
+    const r  = btn.getBoundingClientRect();
+    const pw = pop.offsetWidth;
+    let left = r.left + window.scrollX + r.width / 2 - pw / 2;
+    left = Math.max(window.scrollX + 16, Math.min(left, window.scrollX + document.documentElement.clientWidth - pw - 16));
+    pop.style.left = left + 'px';
+    pop.style.top  = (r.bottom + window.scrollY + 8) + 'px';
+
+    _popEl = pop; _popAnchor = btn;
+}
+
+document.addEventListener('click', closeSlotPopover);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSlotPopover(); });
+window.addEventListener('resize', closeSlotPopover);
 
 /* ═══════════════════════════════════════════════════════════════════
    RESCHEDULE — STEP 1: Cari Booking

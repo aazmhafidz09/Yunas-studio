@@ -111,6 +111,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/transaksi-export', [TransaksiExportController::class, 'export'])->name('transaksi.export');
     Route::resource('transaksi', TransaksiController::class);
     Route::put('/transaksi/{id}/update-status', [TransaksiController::class, 'updateStatus'])->name('transaksi.update-status');
+    Route::put('/gateway/{id}/update-status', [dataGatewayController::class, 'updateStatus'])->name('gateway.update-status');
     Route::resource('gateway', dataGatewayController::class);
 
     // User Photo Gallery (Google Drive API)
