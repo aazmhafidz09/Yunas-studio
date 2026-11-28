@@ -109,16 +109,34 @@ class GoogleDriveService
 
         $result = (function () use ($folderId, $apiKey, $originalUrl) {
             try {
-                $response = Http::timeout(15)->get('https://www.googleapis.com/drive/v3/files', [
-                    'q' => "'{$folderId}' in parents and mimeType contains 'image/' and trashed = false",
-                    'fields' => 'files(id, name, mimeType, webViewLink, webContentLink, thumbnailLink, size, createdTime)',
-                    'orderBy' => 'name',
-                    'pageSize' => 100,
-                    'key' => $apiKey,
-                ]);
+                // Google Drive API paginates results; follow nextPageToken until all files are fetched.
+                $rawFiles = [];
+                $pageToken = null;
+                $maxPages = 50; // safety guard (50 x 1000 files)
+
+                do {
+                    $params = [
+                        'q' => "'{$folderId}' in parents and mimeType contains 'image/' and trashed = false",
+                        'fields' => 'nextPageToken, files(id, name, mimeType, webViewLink, webContentLink, thumbnailLink, size, createdTime)',
+                        'orderBy' => 'name',
+                        'pageSize' => 1000,
+                        'key' => $apiKey,
+                    ];
+                    if ($pageToken) {
+                        $params['pageToken'] = $pageToken;
+                    }
+
+                    $response = Http::timeout(15)->get('https://www.googleapis.com/drive/v3/files', $params);
+
+                    if (!$response->successful()) {
+                        break;
+                    }
+
+                    $rawFiles = array_merge($rawFiles, $response->json('files', []));
+                    $pageToken = $response->json('nextPageToken');
+                } while ($pageToken && --$maxPages > 0);
 
                 if ($response->successful()) {
-                    $rawFiles = $response->json('files', []);
                     $formattedFiles = [];
 
                     foreach ($rawFiles as $file) {
